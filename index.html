@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0d0f14" />
+    <title>FrameFlow · 横竖屏视频转换</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#stage">跳到视频预览</a>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="FrameFlow 首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 4.5H5.5a2 2 0 0 0-2 2V8M17 4.5h1.5a2 2 0 0 1 2 2V8M7 19.5H5.5a2 2 0 0 1-2-2V16M17 19.5h1.5a2 2 0 0 0 2-2V16"/><rect x="7" y="7" width="10" height="10" rx="2"/></svg>
+          </span>
+          <span>FrameFlow</span>
+        </a>
+
+        <div class="topbar-center" aria-label="项目状态">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="projectName">新建画幅项目</span>
+          <span class="saved-state">本地处理</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="button ghost" id="replaceBtn" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 0-14.9-4M4 4v5h5M4 12a8 8 0 0 0 14.9 4M20 20v-5h-5"/></svg>
+            替换视频
+          </button>
+          <button class="button primary" id="exportBtn" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 16v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+            导出视频
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="left-rail" aria-label="创作工具">
+          <div class="rail-heading">
+            <div>
+              <p class="eyebrow">工作台</p>
+              <h2>创作工具</h2>
+            </div>
+            <button class="icon-button" id="addMediaBtn" type="button" aria-label="添加视频">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+
+          <div class="tool-tabs" role="tablist" aria-label="创作工具分类">
+            <button class="active" id="mediaTab" data-panel="mediaPanel" type="button" role="tab" aria-selected="true">素材</button>
+            <button id="subtitleTab" data-panel="subtitlePanel" type="button" role="tab" aria-selected="false">字幕</button>
+            <button id="batchTab" data-panel="batchPanel" type="button" role="tab" aria-selected="false">批量<span class="tab-count" id="batchCount">0</span></button>
+          </div>
+
+          <section class="tool-panel active" id="mediaPanel" role="tabpanel" aria-labelledby="mediaTab">
+            <label class="drop-zone" id="dropZone" for="fileInput">
+              <span class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+              </span>
+              <strong>导入视频</strong>
+              <span>单个或多个视频</span>
+              <small>MP4、MOV、WebM</small>
+            </label>
+            <input id="fileInput" type="file" accept="video/*" multiple hidden />
+
+            <div class="media-list" id="mediaList" aria-label="已导入视频"></div>
+
+            <div class="privacy-note">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8.3 7 10 4.2-1.7 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <p><strong>视频不会上传</strong><br />画面与导出均在本地完成；可选的自动听写可能使用浏览器提供商的语音服务。</p>
+            </div>
+          </section>
+
+          <section class="tool-panel" id="subtitlePanel" role="tabpanel" aria-labelledby="subtitleTab" hidden>
+            <div class="panel-intro">
+              <strong>字幕轨道</strong>
+              <span>字幕会直接烧录到导出视频中</span>
+            </div>
+            <div class="subtitle-actions">
+              <button class="mini-button accent" id="autoSubtitleBtn" type="button" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5M20 4v5h-5M20 12a8 8 0 0 1-14 5M4 20v-5h5"/><path d="M9 10v4m3-7v10m3-7v4"/></svg>
+                自动听写
+              </button>
+              <label class="mini-button" for="srtInput">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+                导入 SRT
+              </label>
+              <input id="srtInput" type="file" accept=".srt,text/plain" hidden />
+              <button class="icon-button small" id="addSubtitleBtn" type="button" aria-label="在播放位置添加字幕" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+            <div class="transcribe-tip" id="transcribeTip">自动听写需要允许麦克风，并让视频声音从扬声器播放；音频可能由浏览器的语音服务处理，建议识别后手动校正。</div>
+
+            <div class="subtitle-style-card">
+              <div class="compact-field-row">
+                <label><span>语言</span><select id="subtitleLanguage"><option value="zh-CN">中文普通话</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></label>
+                <label><span>位置</span><select id="subtitlePosition"><option value="bottom">底部</option><option value="middle">居中</option><option value="top">顶部</option></select></label>
+              </div>
+              <label class="slider-row subtitle-size-row"><span>字号</span><input id="subtitleSize" type="range" min="28" max="72" value="46" aria-label="字幕字号" /><output id="subtitleSizeOut">46</output></label>
+              <div class="compact-color-row">
+                <label>文字<input id="subtitleColor" type="color" value="#ffffff" aria-label="字幕文字颜色" /></label>
+                <label>底色<input id="subtitleBg" type="color" value="#000000" aria-label="字幕背景颜色" /></label>
+                <label class="checkbox-row tiny"><input id="subtitleBackground" type="checkbox" checked /><span class="custom-checkbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8"/></svg></span><span>背景</span></label>
+              </div>
+            </div>
+
+            <div class="empty-list" id="subtitleEmpty">尚无字幕，可自动听写、导入 SRT 或手动添加。</div>
+            <div class="subtitle-list" id="subtitleList"></div>
+          </section>
+
+          <section class="tool-panel" id="batchPanel" role="tabpanel" aria-labelledby="batchTab" hidden>
+            <div class="batch-summary">
+              <span class="batch-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M8 20h10a2 2 0 0 0 2-2V8"/></svg></span>
+              <div><strong id="batchSummaryTitle">还没有批量任务</strong><span>所有视频共用右侧输出设置</span></div>
+            </div>
+            <div class="batch-queue" id="batchQueue"></div>
+            <label class="button ghost full" for="fileInput">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              添加更多视频
+            </label>
+            <button class="button primary full" id="batchExportBtn" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+              批量导出
+            </button>
+            <p class="batch-helper">视频会逐个实时生成。浏览器可能询问是否允许多个文件下载。</p>
+          </section>
+        </aside>
+
+        <section class="stage-panel" aria-label="视频预览">
+          <div class="stage-toolbar">
+            <div class="orientation-switch" role="group" aria-label="快速切换方向">
+              <button class="orientation-btn active" data-ratio="9:16" type="button" aria-pressed="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="2.5" width="9" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
+                竖屏
+              </button>
+              <button class="orientation-btn" data-ratio="16:9" type="button" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M10.5 15.5h3"/></svg>
+                横屏
+              </button>
+            </div>
+            <div class="canvas-meta">
+              <span id="canvasRatioLabel">9:16</span>
+              <span aria-hidden="true">·</span>
+              <span id="canvasSizeLabel">1080 × 1920</span>
+            </div>
+            <button class="icon-button" id="fitPreviewBtn" type="button" aria-label="适应预览区域" title="适应预览区域">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
+          </div>
+
+          <div class="stage" id="stage">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-visual" aria-hidden="true">
+                <span class="frame horizontal"></span>
+                <span class="swap-arrow">
+                  <svg viewBox="0 0 24 24"><path d="M8 7h11m0 0-3-3m3 3-3 3M16 17H5m0 0 3 3m-3-3 3-3"/></svg>
+                </span>
+                <span class="frame vertical"></span>
+              </div>
+              <h1>横屏竖屏，自然转换</h1>
+              <p>保持人物和画面原始比例，通过等比裁切或背景填充适配新画幅。</p>
+              <button class="button primary large" id="emptyUploadBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+                选择一个视频
+              </button>
+            </div>
+
+            <div class="canvas-wrap" id="canvasWrap" hidden>
+              <canvas id="previewCanvas" aria-label="转换后的视频预览"></canvas>
+              <div class="safe-zone-overlay" id="safeZoneOverlay" aria-hidden="true" hidden>
+                <div class="safe-zone-frame" id="safeZoneFrame"><span id="safeZoneLabel">平台安全区</span></div>
+              </div>
+              <div class="focus-guide" id="focusGuide" aria-hidden="true">
+                <span></span>
+              </div>
+              <div class="drag-hint" id="dragHint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20m-3-3 3 3-3 3M5 9l-3 3 3 3M9 5l3-3 3 3M9 19l3 3 3-3"/></svg>
+                拖动画面调整人物位置
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-panel" id="playerBar">
+            <div class="player-bar">
+              <button class="play-button" id="playBtn" type="button" aria-label="播放" disabled>
+                <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+              </button>
+              <span class="timecode" id="currentTime">00:00.0</span>
+              <input class="timeline" id="timeline" type="range" min="0" max="100" value="0" step="0.01" aria-label="播放进度" disabled />
+              <span class="timecode muted" id="totalTime">00:00.0</span>
+              <button class="icon-button" id="volumeBtn" type="button" aria-label="静音" disabled>
+                <svg class="volume-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 4a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg>
+                <svg class="volume-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Zm5 5 5 5m0-5-5 5"/></svg>
+              </button>
+            </div>
+            <div class="clip-editor" id="clipEditor" hidden>
+              <div class="clip-track-wrap"><div class="playhead" id="clipPlayhead"></div><div class="clip-track" id="clipTrack" aria-label="保留片段"></div></div>
+              <div class="clip-actions">
+                <button id="setInBtn" type="button">设为入点</button>
+                <button id="splitBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 18h16M12 6v12"/></svg>分割</button>
+                <span id="selectedClipLabel">片段 1</span>
+                <button id="deleteClipBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v5m4-5v5M9 7l1-3h4l1 3m3 0-1 13H7L6 7"/></svg>删除</button>
+                <button id="setOutBtn" type="button">设为出点</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector" aria-label="画幅设置">
+          <div class="inspector-heading">
+            <div>
+              <p class="eyebrow">画幅</p>
+              <h2>转换设置</h2>
+            </div>
+            <button class="text-button" id="resetBtn" type="button">重置</button>
+          </div>
+
+          <div class="control-section">
+            <div class="section-label"><span>目标比例</span><output id="ratioOutput">9:16</output></div>
+            <div class="ratio-grid" id="ratioGrid">
+              <button class="ratio-card active" data-ratio="9:16" type="button" aria-pressed="true"><span class="ratio-shape r916"></span><strong>9:16</strong><small>短视频</small></button>
+              <button class="ratio-card" data-ratio="16:9" type="button" aria-pressed="false"><span class="ratio-shape r169"></span><strong>16:9</strong><small>横屏</small></button>
+              <button class="ratio-card" data-ratio="1:1" type="button" aria-pressed="false"><span class="ratio-shape r11"></span><strong>1:1</strong><small>方形</small></button>
+              <button class="ratio-card" data-ratio="4:5" type="button" aria-pressed="false"><span class="ratio-shape r45"></span><strong>4:5</strong><small>动态</small></button>
+              <button class="ratio-card" data-ratio="3:4" type="button" aria-pressed="false"><span class="ratio-shape r34"></span><strong>3:4</strong><small>图文</small></button>
+              <button class="ratio-card" data-ratio="21:9" type="button" aria-pressed="false"><span class="ratio-shape r219"></span><strong>21:9</strong><small>电影</small></button>
+            </div>
+          </div>
+
+          <div class="control-section" id="transformControls">
+            <div class="section-label"><span>剪辑与变换</span><output id="clipDurationOut">—</output></div>
+            <div class="transform-grid">
+              <button id="rotateBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 1-2.3-5.7M20 4v7h-7"/></svg><span>旋转</span></button>
+              <button id="flipXBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M9 6 3 12l6 6m6-12 6 6-6 6"/></svg><span>水平翻转</span></button>
+              <button id="flipYBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18M6 9l6-6 6 6M6 15l6 6 6-6"/></svg><span>垂直翻转</span></button>
+            </div>
+            <label class="full-field transform-speed"><span>播放速度</span><select id="speedSelect"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1.0×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2.0×</option></select></label>
+          </div>
+
+          <div class="control-section">
+            <div class="section-label"><span>适配方式</span><button class="help-dot" type="button" aria-label="适配方式说明" title="三种方式都会保持原始比例，不拉伸视频">?</button></div>
+            <div class="segmented" id="fitModes" role="radiogroup" aria-label="适配方式">
+              <button class="active" data-fit="cover" type="button" role="radio" aria-checked="true">焦点裁切</button>
+              <button data-fit="blur" type="button" role="radio" aria-checked="false">模糊填充</button>
+              <button data-fit="contain" type="button" role="radio" aria-checked="false">完整留边</button>
+            </div>
+            <p class="helper" id="fitHelper">等比放大并裁掉画幅外区域，可拖动调整人物位置。</p>
+          </div>
+
+          <div class="control-section" id="focusControls">
+            <div class="section-label"><span>人物焦点</span><button class="text-button compact" id="centerFocusBtn" type="button">居中</button></div>
+            <label class="slider-row">
+              <span>水平</span>
+              <input id="focusX" type="range" min="0" max="100" value="50" aria-label="水平焦点" />
+              <output id="focusXOut">50%</output>
+            </label>
+            <label class="slider-row">
+              <span>垂直</span>
+              <input id="focusY" type="range" min="0" max="100" value="50" aria-label="垂直焦点" />
+              <output id="focusYOut">50%</output>
+            </label>
+          </div>
+
+          <div class="control-section" id="backgroundControls" hidden>
+            <div class="section-label"><span>背景样式</span></div>
+            <label class="slider-row blur-control">
+              <span>模糊</span>
+              <input id="blurAmount" type="range" min="8" max="60" value="28" aria-label="背景模糊强度" />
+              <output id="blurOut">28</output>
+            </label>
+            <label class="color-row">
+              <span>留边颜色</span>
+              <span class="color-input-wrap"><input id="backgroundColor" type="color" value="#090b10" aria-label="留边颜色" /><span id="colorValue">#090B10</span></span>
+            </label>
+          </div>
+
+          <div class="control-section">
+            <div class="section-label"><span>平台安全区</span><span class="safe-badge neutral">仅预览</span></div>
+            <label class="full-field safe-zone-select"><span>发布平台</span><select id="safeZoneSelect"><option value="none">不显示</option><option value="douyin">抖音 / TikTok</option><option value="xiaohongshu">小红书</option><option value="wechat">微信视频号</option><option value="youtube">YouTube Shorts</option><option value="instagram">Instagram Reels</option></select></label>
+            <p class="helper">虚线框内是建议放置人物、字幕和关键信息的区域，不会出现在导出视频中。</p>
+          </div>
+
+          <div class="control-section export-settings">
+            <div class="section-label"><span>输出</span><span class="safe-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>不拉伸</span></div>
+            <div class="field-grid">
+              <label><span>清晰度</span><select id="resolutionSelect"><option value="720">720p</option><option value="1080" selected>1080p</option><option value="2160">4K</option></select></label>
+              <label><span>帧率</span><select id="fpsSelect"><option value="24">24 fps</option><option value="30" selected>30 fps</option><option value="60">60 fps</option></select></label>
+            </div>
+            <label class="full-field"><span>导出格式</span><select id="formatSelect" aria-label="导出格式"></select></label>
+            <label class="checkbox-row"><input id="includeAudio" type="checkbox" checked /><span class="custom-checkbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8"/></svg></span><span>保留原视频声音</span></label>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <video id="sourceVideo" playsinline preload="metadata" hidden></video>
+
+    <div class="export-toast" id="exportToast" role="status" aria-live="polite" hidden>
+      <div class="export-spinner" aria-hidden="true"></div>
+      <div class="export-copy">
+        <div><strong id="exportTitle">正在生成视频</strong><span id="exportPercent">0%</span></div>
+        <div class="progress-track"><span id="exportProgress"></span></div>
+        <p id="exportDetail">视频将在本地实时生成，请保持此页面打开。</p>
+      </div>
+      <button class="icon-button" id="cancelExportBtn" type="button" aria-label="取消导出">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="notice" id="notice" role="alert" hidden></div>
+    <script src="app.js"></script>
+  </body>
+</html>

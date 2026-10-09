@@ -1,0 +1,1557 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0d0f14" />
+    <title>FrameFlow · 横竖屏视频转换</title>
+    <style>
+:root {
+  --bg: #0d0f14;
+  --panel: #12151c;
+  --panel-2: #171b24;
+  --panel-3: #1d222c;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.13);
+  --text: #f4f6fb;
+  --muted: #929baa;
+  --faint: #7f8898;
+  --accent: #f1a34f;
+  --accent-strong: #ffb661;
+  --accent-soft: rgba(241, 163, 79, 0.14);
+  --green: #61d19a;
+  --danger: #ff6b6b;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --shadow: 0 18px 56px rgba(0, 0, 0, 0.34);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select { font: inherit; }
+button, label, select, input[type="range"], input[type="color"] { cursor: pointer; }
+button { color: inherit; }
+svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+[hidden] { display: none !important; }
+
+.skip-link { position: fixed; left: 16px; top: -60px; z-index: 100; padding: 10px 14px; border-radius: 8px; background: var(--accent); color: #1d150d; font-weight: 700; text-decoration: none; transition: top .16s ease; }
+.skip-link:focus { top: 12px; }
+
+.app-shell { height: 100vh; min-height: 640px; display: flex; flex-direction: column; }
+
+.topbar {
+  height: 64px;
+  flex: 0 0 64px;
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  align-items: center;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(13, 15, 20, 0.96);
+  position: relative;
+  z-index: 10;
+}
+
+.brand { display: inline-flex; align-items: center; gap: 10px; width: fit-content; color: var(--text); text-decoration: none; font-weight: 720; font-size: 17px; letter-spacing: -0.02em; }
+.brand-mark { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; color: #17120c; background: var(--accent); box-shadow: 0 0 0 1px rgba(255,255,255,.1) inset; }
+.brand-mark svg { width: 21px; height: 21px; stroke-width: 1.9; }
+
+.topbar-center { justify-self: center; display: flex; align-items: center; gap: 8px; color: #c9ced8; font-weight: 520; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(97,209,154,.09); }
+.saved-state { color: var(--faint); font-size: 12px; padding-left: 8px; border-left: 1px solid var(--line-strong); }
+.topbar-actions { justify-self: end; display: flex; gap: 8px; }
+
+.button { min-height: 38px; padding: 0 14px; border: 1px solid transparent; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 650; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; }
+.button svg { width: 17px; height: 17px; }
+.button:hover:not(:disabled) { transform: translateY(-1px); }
+.button:active:not(:disabled) { transform: translateY(0); }
+.button:disabled { opacity: .4; cursor: not-allowed; }
+.button.ghost { background: var(--panel-2); border-color: var(--line-strong); color: #d8dce4; }
+.button.ghost:hover:not(:disabled) { background: var(--panel-3); }
+.button.primary { background: var(--accent); color: #1d150d; box-shadow: 0 5px 18px rgba(241,163,79,.14); }
+.button.primary:hover:not(:disabled) { background: var(--accent-strong); box-shadow: 0 7px 22px rgba(241,163,79,.2); }
+.button.large { min-height: 46px; padding: 0 20px; border-radius: 11px; font-size: 15px; }
+
+.workspace { min-height: 0; flex: 1; display: grid; grid-template-columns: 278px minmax(420px, 1fr) 332px; }
+.left-rail, .inspector { min-width: 0; background: var(--panel); overflow-y: auto; scrollbar-width: thin; scrollbar-color: #343a47 transparent; }
+.left-rail { border-right: 1px solid var(--line); padding: 20px 16px; }
+.inspector { border-left: 1px solid var(--line); }
+
+.rail-heading, .inspector-heading { display: flex; align-items: center; justify-content: space-between; }
+.rail-heading { margin: 0 2px 18px; }
+.inspector-heading { padding: 20px 20px 17px; border-bottom: 1px solid var(--line); }
+.eyebrow { margin: 0 0 4px; color: var(--faint); font-size: 10px; font-weight: 750; letter-spacing: .14em; text-transform: uppercase; }
+h2 { margin: 0; font-size: 15px; line-height: 1.2; }
+
+.icon-button { width: 36px; height: 36px; padding: 0; display: inline-grid; place-items: center; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--muted); transition: color .18s ease, background .18s ease, border-color .18s ease; }
+.icon-button:hover:not(:disabled) { color: var(--text); border-color: var(--line-strong); background: rgba(255,255,255,.04); }
+.icon-button:disabled { opacity: .35; cursor: not-allowed; }
+
+.drop-zone { min-height: 154px; padding: 22px 14px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; border: 1px dashed #3b424f; border-radius: var(--radius); background: rgba(255,255,255,.015); color: var(--muted); transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-soft); }
+.drop-zone.dragover { transform: scale(1.01); }
+.drop-zone strong { color: #e8ebf1; }
+.drop-zone > span:not(.upload-icon) { font-size: 12px; }
+.drop-zone small { color: var(--faint); font-size: 11px; }
+.upload-icon { width: 38px; height: 38px; margin-bottom: 3px; display: grid; place-items: center; color: var(--accent); border-radius: 10px; background: var(--accent-soft); }
+
+.media-card { margin-top: 14px; padding: 8px; display: grid; grid-template-columns: 58px minmax(0,1fr) 22px; align-items: center; gap: 10px; border: 1px solid rgba(241,163,79,.35); border-radius: 10px; background: var(--accent-soft); }
+.media-thumb { width: 58px; height: 42px; overflow: hidden; position: relative; border-radius: 6px; background: #07080b; }
+.media-thumb canvas { width: 100%; height: 100%; object-fit: cover; }
+.media-duration { position: absolute; right: 3px; bottom: 3px; padding: 1px 3px; color: white; background: rgba(0,0,0,.7); border-radius: 3px; font-size: 8px; }
+.media-copy { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.media-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.media-copy span { color: var(--muted); font-size: 10px; }
+.media-check { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: #1c140b; }
+.media-check svg { width: 13px; height: 13px; stroke-width: 2.5; }
+
+.privacy-note { margin-top: 18px; padding: 13px; display: flex; align-items: flex-start; gap: 9px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,.018); }
+.privacy-note svg { width: 17px; height: 17px; flex: 0 0 auto; margin-top: 1px; color: var(--green); }
+.privacy-note p { margin: 0; color: var(--faint); font-size: 10px; line-height: 1.55; }
+.privacy-note strong { color: #b8c0cc; font-size: 11px; font-weight: 650; }
+
+.tool-tabs { margin: 0 0 14px; padding: 3px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0,0,0,.18); }
+.tool-tabs button { min-height: 32px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 11px; transition: background .18s ease, color .18s ease; }
+.tool-tabs button:hover { color: var(--text); }
+.tool-tabs button.active { color: var(--text); background: #292e38; }
+.tab-count { min-width: 16px; height: 16px; margin-left: 4px; padding: 0 4px; display: inline-grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,.08); color: var(--muted); font-size: 9px; }
+.tool-tabs button.active .tab-count { background: var(--accent-soft); color: var(--accent); }
+.tool-panel { animation: panel-in .18s ease both; }
+.tool-panel:not(.active) { display: none; }
+.panel-intro { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+.panel-intro strong { font-size: 12px; }
+.panel-intro span { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.media-list { display: flex; flex-direction: column; gap: 8px; }
+button.media-card { width: 100%; margin-top: 0; color: var(--text); text-align: left; }
+button.media-card:not(.active) { border-color: var(--line); background: rgba(255,255,255,.018); }
+button.media-card .media-status { color: var(--faint); }
+button.media-card.done .media-status { color: var(--green); }
+
+.subtitle-actions { display: grid; grid-template-columns: 1fr 1fr 32px; gap: 6px; }
+.mini-button { min-height: 34px; padding: 0 8px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--line); border-radius: 7px; background: #191d25; color: #ccd1da; font-size: 10px; font-weight: 620; transition: border-color .18s ease, background .18s ease, color .18s ease; }
+.mini-button:hover:not(:disabled) { background: #222731; border-color: var(--line-strong); color: white; }
+.mini-button.accent { border-color: rgba(241,163,79,.35); background: var(--accent-soft); color: var(--accent); }
+.mini-button.recording { border-color: rgba(255,107,107,.5); background: rgba(255,107,107,.12); color: #ff9a9a; }
+.mini-button:disabled { opacity: .4; cursor: not-allowed; }
+.icon-button.small { width: 32px; height: 34px; }
+.transcribe-tip { margin: 8px 0 12px; padding: 8px 9px; border-radius: 7px; background: rgba(255,255,255,.025); color: var(--faint); font-size: 9px; line-height: 1.45; }
+.subtitle-style-card { margin-bottom: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.016); }
+.compact-field-row { display: grid; grid-template-columns: 1.25fr .75fr; gap: 7px; }
+.compact-field-row label { display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 9px; }
+.compact-field-row select { height: 31px; }
+.subtitle-size-row { margin-top: 6px; }
+.compact-color-row { margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+.compact-color-row > label:not(.checkbox-row) { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 9px; }
+.compact-color-row input[type="color"] { width: 25px; height: 25px; border: 1px solid var(--line); }
+.checkbox-row.tiny { margin: 0 0 0 auto; }
+.empty-list { padding: 20px 10px; border: 1px dashed var(--line-strong); border-radius: 9px; color: var(--faint); font-size: 10px; line-height: 1.55; text-align: center; }
+.subtitle-list { display: flex; flex-direction: column; gap: 7px; }
+.subtitle-item { padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.018); }
+.subtitle-item.active { border-color: rgba(241,163,79,.42); background: var(--accent-soft); }
+.subtitle-item-top { margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.subtitle-item-top input { width: 58px; height: 26px; padding: 0 5px; border: 1px solid var(--line); border-radius: 5px; background: #11141a; color: #cfd4dc; font: 500 9px/1 ui-monospace, monospace; }
+.subtitle-item-top span { color: var(--faint); font-size: 9px; }
+.subtitle-item-top button { width: 26px; height: 26px; margin-left: auto; padding: 0; display: grid; place-items: center; border: 0; border-radius: 5px; background: transparent; color: var(--faint); }
+.subtitle-item-top button:hover { background: rgba(255,107,107,.1); color: var(--danger); }
+.subtitle-item-top svg { width: 14px; height: 14px; }
+.subtitle-item textarea { width: 100%; min-height: 48px; resize: vertical; padding: 7px; border: 1px solid var(--line); border-radius: 6px; background: rgba(0,0,0,.18); color: var(--text); font-size: 10px; line-height: 1.45; }
+
+.batch-summary { margin-bottom: 12px; padding: 11px; display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.018); }
+.batch-icon { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.batch-icon svg { width: 17px; height: 17px; }
+.batch-summary > div { display: flex; flex-direction: column; gap: 4px; }
+.batch-summary strong { font-size: 11px; }
+.batch-summary span { color: var(--faint); font-size: 9px; }
+.batch-queue { margin-bottom: 10px; display: flex; flex-direction: column; gap: 5px; }
+.batch-item { min-height: 38px; padding: 5px 8px; display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255,255,255,.015); color: var(--muted); text-align: left; }
+.batch-item.active { border-color: rgba(241,163,79,.4); color: var(--text); }
+.batch-item-index { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.06); color: var(--faint); font-size: 8px; }
+.batch-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
+.batch-item-status { color: var(--faint); font-size: 8px; }
+.batch-item.done .batch-item-status { color: var(--green); }
+.button.full { width: 100%; margin-top: 7px; }
+.batch-helper { margin: 10px 3px 0; color: var(--faint); font-size: 9px; line-height: 1.5; text-align: center; }
+
+.stage-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: #090b0f; }
+.stage-toolbar { height: 52px; flex: 0 0 52px; padding: 0 14px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; border-bottom: 1px solid var(--line); background: #101319; }
+.stage-toolbar > .icon-button { justify-self: end; }
+.orientation-switch { justify-self: start; padding: 3px; display: flex; gap: 2px; border-radius: 9px; background: rgba(255,255,255,.045); }
+.orientation-btn { min-height: 32px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 12px; transition: color .18s ease, background .18s ease; }
+.orientation-btn svg { width: 15px; height: 15px; }
+.orientation-btn.active { color: var(--text); background: #292e38; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.canvas-meta { color: var(--faint); font-size: 11px; display: flex; gap: 6px; }
+
+.stage { min-height: 0; flex: 1; padding: 28px; display: grid; place-items: center; position: relative; overflow: hidden; background-color: #0a0c10; background-image: linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px); background-size: 24px 24px; }
+.empty-state { max-width: 440px; text-align: center; padding: 32px; }
+.empty-state h1 { margin: 26px 0 10px; font-size: clamp(24px, 3vw, 34px); line-height: 1.12; letter-spacing: -.035em; }
+.empty-state p { margin: 0 auto 24px; max-width: 420px; color: var(--muted); line-height: 1.65; }
+.empty-visual { height: 112px; display: flex; align-items: center; justify-content: center; gap: 12px; position: relative; }
+.frame { display: block; border: 2px solid #505765; border-radius: 8px; position: relative; box-shadow: 0 16px 36px rgba(0,0,0,.28); }
+.frame::after { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(255,255,255,.08); border-radius: 3px; }
+.frame.horizontal { width: 126px; height: 74px; background: #151923; }
+.frame.vertical { width: 66px; height: 108px; border-color: var(--accent); background: var(--accent-soft); }
+.swap-arrow { width: 34px; height: 34px; display: grid; place-items: center; color: var(--accent); border: 1px solid rgba(241,163,79,.24); border-radius: 50%; background: #16191f; position: relative; z-index: 2; }
+
+.canvas-wrap { max-width: 100%; max-height: 100%; position: relative; border-radius: 3px; box-shadow: 0 24px 80px rgba(0,0,0,.56), 0 0 0 1px rgba(255,255,255,.08); touch-action: none; user-select: none; }
+.canvas-wrap.dragging { cursor: grabbing; }
+#previewCanvas { display: block; width: 100%; height: 100%; background: #000; border-radius: 3px; }
+.focus-guide { width: 46px; height: 46px; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); border: 1px solid rgba(255,255,255,.8); border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity .2s ease; filter: drop-shadow(0 1px 3px rgba(0,0,0,.7)); }
+.focus-guide::before, .focus-guide::after, .focus-guide span::before, .focus-guide span::after { content: ""; position: absolute; background: white; }
+.focus-guide::before { width: 8px; height: 1px; top: 50%; left: -4px; }
+.focus-guide::after { width: 8px; height: 1px; top: 50%; right: -4px; }
+.focus-guide span::before { width: 1px; height: 8px; left: 50%; top: -4px; }
+.focus-guide span::after { width: 1px; height: 8px; left: 50%; bottom: -4px; }
+.canvas-wrap:hover .focus-guide, .canvas-wrap.dragging .focus-guide { opacity: .8; }
+.drag-hint { min-height: 32px; padding: 0 10px; display: flex; align-items: center; gap: 6px; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); border-radius: 8px; background: rgba(8,10,14,.8); backdrop-filter: blur(8px); color: #d6dae2; font-size: 10px; white-space: nowrap; pointer-events: none; transition: opacity .35s ease; }
+.drag-hint svg { width: 13px; height: 13px; }
+.drag-hint.fade { opacity: 0; }
+
+.safe-zone-overlay { position: absolute; inset: 0; overflow: hidden; border-radius: 3px; pointer-events: none; }
+.safe-zone-frame { position: absolute; border: 1px dashed rgba(255,255,255,.82); border-radius: 4px; box-shadow: 0 0 0 9999px rgba(255,91,91,.1), 0 0 8px rgba(0,0,0,.5) inset; transition: inset .22s ease; }
+.safe-zone-frame::before, .safe-zone-frame::after { content: ""; position: absolute; background: rgba(255,255,255,.48); }
+.safe-zone-frame::before { left: 50%; top: 0; bottom: 0; width: 1px; opacity: .25; }
+.safe-zone-frame::after { top: 50%; left: 0; right: 0; height: 1px; opacity: .25; }
+.safe-zone-frame span { position: absolute; top: 6px; left: 7px; padding: 3px 5px; border-radius: 4px; background: rgba(8,10,14,.72); color: white; font-size: 8px; white-space: nowrap; }
+
+.player-bar { height: 64px; flex: 0 0 64px; padding: 0 20px; display: flex; align-items: center; gap: 12px; border-top: 1px solid var(--line); background: #101319; }
+.timeline-panel { flex: 0 0 116px; min-height: 116px; border-top: 1px solid var(--line); background: #101319; }
+.timeline-panel .player-bar { border-top: 0; }
+.clip-editor { height: 52px; padding: 0 20px 8px; display: grid; grid-template-columns: minmax(140px,1fr) auto; align-items: center; gap: 12px; }
+.clip-track-wrap { height: 24px; position: relative; border-radius: 5px; background: #090b0f; overflow: hidden; box-shadow: 0 0 0 1px var(--line) inset; }
+.clip-track { position: absolute; inset: 3px; }
+.clip-segment { min-width: 3px; height: 18px; padding: 0; position: absolute; top: 0; border: 1px solid rgba(241,163,79,.34); border-radius: 3px; background: rgba(241,163,79,.25); transition: background .16s ease, border-color .16s ease; }
+.clip-segment:hover { background: rgba(241,163,79,.38); }
+.clip-segment.active { border-color: var(--accent); background: rgba(241,163,79,.56); }
+.playhead { width: 1px; top: 0; bottom: 0; left: 0; position: absolute; z-index: 3; background: white; pointer-events: none; transform: translateX(3px); }
+.playhead::before { content: ""; width: 7px; height: 5px; position: absolute; left: -3px; top: 0; border-radius: 1px; background: white; }
+.clip-actions { display: flex; align-items: center; gap: 4px; }
+.clip-actions button { min-height: 28px; padding: 0 7px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 6px; background: #191d25; color: var(--muted); font-size: 9px; }
+.clip-actions button:hover { color: white; border-color: var(--line-strong); }
+.clip-actions svg { width: 12px; height: 12px; }
+.clip-actions span { min-width: 52px; color: var(--faint); font-size: 9px; text-align: center; }
+.play-button { width: 38px; height: 38px; flex: 0 0 38px; padding: 0; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--panel-2); color: white; }
+.play-button:hover:not(:disabled) { background: var(--panel-3); border-color: rgba(241,163,79,.42); color: var(--accent); }
+.play-button:disabled { opacity: .35; cursor: not-allowed; }
+.play-button svg { grid-area: 1 / 1; width: 17px; height: 17px; }
+.play-button .play-icon { margin-left: 2px; fill: currentColor; stroke-width: 0; }
+.play-button .pause-icon { display: none; }
+.play-button.playing .play-icon { display: none; }
+.play-button.playing .pause-icon { display: block; }
+.timecode { min-width: 55px; color: #d2d7df; font: 500 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.timecode.muted { color: var(--faint); }
+
+input[type="range"] { appearance: none; height: 18px; background: transparent; }
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(to right, var(--accent) 0 var(--value, 50%), #3a404b var(--value, 50%) 100%); }
+input[type="range"]::-webkit-slider-thumb { appearance: none; width: 13px; height: 13px; margin-top: -5px; border: 2px solid #171a20; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px rgba(255,255,255,.13); }
+input[type="range"]::-moz-range-track { height: 3px; border-radius: 3px; background: #3a404b; }
+input[type="range"]::-moz-range-progress { height: 3px; border-radius: 3px; background: var(--accent); }
+input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border: 2px solid #171a20; border-radius: 50%; background: var(--accent); }
+.timeline { min-width: 70px; flex: 1; }
+.volume-off { display: none; }
+.muted-audio .volume-on { display: none; }
+.muted-audio .volume-off { display: block; }
+
+.text-button { min-height: 30px; padding: 0 3px; border: 0; background: transparent; color: var(--accent); font-size: 11px; font-weight: 650; }
+.text-button:hover { color: var(--accent-strong); }
+.text-button.compact { min-height: 24px; }
+.control-section { padding: 17px 20px; border-bottom: 1px solid var(--line); }
+.section-label { min-height: 22px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; color: #d8dce4; font-size: 12px; font-weight: 650; }
+.section-label output { color: var(--accent); font-size: 11px; font-weight: 700; }
+.help-dot { width: 18px; height: 18px; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%; background: transparent; color: var(--faint); font-size: 10px; }
+
+.ratio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.ratio-card { min-width: 0; min-height: 74px; padding: 8px 4px 7px; display: grid; grid-template-rows: 20px auto auto; justify-items: center; gap: 3px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255,255,255,.015); color: var(--muted); transition: color .18s ease, background .18s ease, border-color .18s ease; }
+.ratio-card:hover { color: #daddE5; border-color: var(--line-strong); background: rgba(255,255,255,.03); }
+.ratio-card.active { color: var(--accent); border-color: rgba(241,163,79,.48); background: var(--accent-soft); }
+.ratio-card strong { font-size: 11px; }
+.ratio-card small { color: var(--faint); font-size: 9px; }
+.ratio-shape { align-self: center; display: block; border: 1.5px solid currentColor; border-radius: 2px; }
+.r916 { width: 8px; height: 15px; }.r169 { width: 18px; height: 10px; }.r11 { width: 13px; height: 13px; }.r45 { width: 11px; height: 14px; }.r34 { width: 11px; height: 15px; }.r219 { width: 20px; height: 8px; }
+
+.segmented { padding: 3px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0,0,0,.16); }
+.segmented button { min-height: 32px; padding: 0 5px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 10px; transition: color .18s ease, background .18s ease; }
+.segmented button:hover { color: var(--text); }
+.segmented button.active { color: var(--text); background: #2a303a; box-shadow: 0 1px 2px rgba(0,0,0,.22); }
+.helper { margin: 9px 1px 0; color: var(--faint); font-size: 9px; line-height: 1.5; }
+
+.slider-row { min-height: 31px; display: grid; grid-template-columns: 34px minmax(70px,1fr) 34px; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
+.slider-row output { text-align: right; color: #c6ccd5; font: 500 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.color-row { min-height: 36px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 10px; }
+.color-input-wrap { min-height: 29px; padding: 3px 8px 3px 4px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 7px; color: #cbd0d8; font: 500 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+input[type="color"] { width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; overflow: hidden; background: transparent; }
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+
+.safe-badge { padding: 3px 6px; display: inline-flex; align-items: center; gap: 3px; border-radius: 5px; background: rgba(97,209,154,.1); color: var(--green); font-size: 9px; font-weight: 650; }
+.safe-badge svg { width: 11px; height: 11px; stroke-width: 2.4; }
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.field-grid label, .full-field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 9px; }
+.full-field { margin-top: 10px; }
+select { width: 100%; height: 34px; padding: 0 28px 0 9px; border: 1px solid var(--line); border-radius: 7px; background: #191d25; color: #dce0e7; font-size: 10px; }
+.checkbox-row { margin-top: 13px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 10px; }
+.checkbox-row input { position: absolute; opacity: 0; pointer-events: none; }
+.custom-checkbox { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 4px; background: #171a21; color: #16110b; }
+.custom-checkbox svg { width: 12px; height: 12px; opacity: 0; stroke-width: 2.7; }
+.checkbox-row input:checked + .custom-checkbox { border-color: var(--accent); background: var(--accent); }
+.checkbox-row input:checked + .custom-checkbox svg { opacity: 1; }
+.checkbox-row input:focus-visible + .custom-checkbox { outline: 2px solid var(--accent-strong); outline-offset: 2px; }
+
+.transform-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.transform-grid button { min-height: 48px; padding: 5px 3px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.015); color: var(--muted); font-size: 8px; transition: color .18s ease, border-color .18s ease, background .18s ease; }
+.transform-grid button:hover { color: white; border-color: var(--line-strong); }
+.transform-grid button.active { color: var(--accent); border-color: rgba(241,163,79,.45); background: var(--accent-soft); }
+.transform-grid svg { width: 16px; height: 16px; }
+.transform-speed { margin-top: 9px; }
+.safe-badge.neutral { background: rgba(255,255,255,.055); color: var(--muted); }
+.safe-zone-select { margin-top: 0; }
+
+.export-toast { width: min(430px, calc(100vw - 32px)); min-height: 94px; padding: 16px; display: grid; grid-template-columns: 28px minmax(0,1fr) 36px; align-items: start; gap: 12px; position: fixed; right: 22px; bottom: 20px; z-index: 40; border: 1px solid var(--line-strong); border-radius: 13px; background: rgba(25,29,37,.96); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+.export-spinner { width: 24px; height: 24px; margin-top: 1px; border: 2px solid rgba(241,163,79,.2); border-top-color: var(--accent); border-radius: 50%; animation: spin .85s linear infinite; }
+.export-copy > div:first-child { display: flex; justify-content: space-between; font-size: 12px; }
+.export-copy > div:first-child span { color: var(--accent); font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.export-copy p { margin: 8px 0 0; color: var(--muted); font-size: 9px; }
+.progress-track { height: 4px; margin-top: 10px; overflow: hidden; border-radius: 5px; background: #353b46; }
+.progress-track span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width .2s linear; }
+
+.notice { max-width: min(460px, calc(100vw - 32px)); padding: 12px 15px; position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60; border: 1px solid var(--line-strong); border-radius: 9px; background: #242934; box-shadow: var(--shadow); color: #e7e9ee; font-size: 12px; text-align: center; }
+.notice.error { border-color: rgba(255,107,107,.45); color: #ffd2d2; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes panel-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 1120px) {
+  .workspace { grid-template-columns: 238px minmax(390px,1fr) 300px; }
+  .topbar { grid-template-columns: 230px 1fr 230px; }
+  .button.ghost { font-size: 0; width: 40px; padding: 0; }
+  .button.ghost svg { width: 18px; height: 18px; }
+  .control-section { padding-inline: 16px; }
+  .clip-editor { grid-template-columns: 1fr; gap: 3px; height: 72px; }
+  .timeline-panel { flex-basis: 136px; min-height: 136px; }
+  .clip-actions { justify-content: center; }
+}
+
+@media (max-width: 900px) {
+  body { overflow: auto; }
+  .app-shell { min-height: 100vh; height: auto; }
+  .topbar { grid-template-columns: 1fr auto; position: sticky; top: 0; }
+  .topbar-center, .left-rail { display: none; }
+  .workspace { min-height: calc(100vh - 64px); grid-template-columns: minmax(0,1fr) 292px; }
+  .stage-panel { min-height: calc(100vh - 64px); }
+  .stage { min-height: 520px; }
+  .clip-editor { padding-inline: 12px; }
+}
+
+@media (max-width: 680px) {
+  .topbar { height: 58px; min-height: 58px; padding: 0 12px; }
+  .brand { font-size: 15px; }
+  .brand-mark { width: 30px; height: 30px; }
+  .topbar .button.primary { width: 40px; padding: 0; font-size: 0; }
+  .workspace { display: flex; flex-direction: column; }
+  .stage-panel { min-height: calc(100vh - 58px); }
+  .stage-toolbar { grid-template-columns: 1fr auto; }
+  .canvas-meta { display: none; }
+  .stage { min-height: 480px; padding: 20px 14px; }
+  .empty-state { padding: 18px 5px; }
+  .empty-state h1 { font-size: 26px; }
+  .inspector { overflow: visible; border-left: 0; border-top: 1px solid var(--line); }
+  .player-bar { padding: 0 12px; gap: 8px; }
+  .clip-actions span { display: none; }
+  .clip-actions button { flex: 1; justify-content: center; }
+  .timecode { min-width: 48px; font-size: 10px; }
+  .export-toast { right: 16px; bottom: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#stage">跳到视频预览</a>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="FrameFlow 首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 4.5H5.5a2 2 0 0 0-2 2V8M17 4.5h1.5a2 2 0 0 1 2 2V8M7 19.5H5.5a2 2 0 0 1-2-2V16M17 19.5h1.5a2 2 0 0 0 2-2V16"/><rect x="7" y="7" width="10" height="10" rx="2"/></svg>
+          </span>
+          <span>FrameFlow</span>
+        </a>
+
+        <div class="topbar-center" aria-label="项目状态">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="projectName">新建画幅项目</span>
+          <span class="saved-state">本地处理</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="button ghost" id="replaceBtn" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 0 0-14.9-4M4 4v5h5M4 12a8 8 0 0 0 14.9 4M20 20v-5h-5"/></svg>
+            替换视频
+          </button>
+          <button class="button primary" id="exportBtn" type="button" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 16v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+            导出视频
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="left-rail" aria-label="创作工具">
+          <div class="rail-heading">
+            <div>
+              <p class="eyebrow">工作台</p>
+              <h2>创作工具</h2>
+            </div>
+            <button class="icon-button" id="addMediaBtn" type="button" aria-label="添加视频">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
+
+          <div class="tool-tabs" role="tablist" aria-label="创作工具分类">
+            <button class="active" id="mediaTab" data-panel="mediaPanel" type="button" role="tab" aria-selected="true">素材</button>
+            <button id="subtitleTab" data-panel="subtitlePanel" type="button" role="tab" aria-selected="false">字幕</button>
+            <button id="batchTab" data-panel="batchPanel" type="button" role="tab" aria-selected="false">批量<span class="tab-count" id="batchCount">0</span></button>
+          </div>
+
+          <section class="tool-panel active" id="mediaPanel" role="tabpanel" aria-labelledby="mediaTab">
+            <label class="drop-zone" id="dropZone" for="fileInput">
+              <span class="upload-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+              </span>
+              <strong>导入视频</strong>
+              <span>单个或多个视频</span>
+              <small>MP4、MOV、WebM</small>
+            </label>
+            <input id="fileInput" type="file" accept="video/*" multiple hidden />
+
+            <div class="media-list" id="mediaList" aria-label="已导入视频"></div>
+
+            <div class="privacy-note">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8.3 7 10 4.2-1.7 7-5.5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <p><strong>视频不会上传</strong><br />画面与导出均在本地完成；可选的自动听写可能使用浏览器提供商的语音服务。</p>
+            </div>
+          </section>
+
+          <section class="tool-panel" id="subtitlePanel" role="tabpanel" aria-labelledby="subtitleTab" hidden>
+            <div class="panel-intro">
+              <strong>字幕轨道</strong>
+              <span>字幕会直接烧录到导出视频中</span>
+            </div>
+            <div class="subtitle-actions">
+              <button class="mini-button accent" id="autoSubtitleBtn" type="button" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5M20 4v5h-5M20 12a8 8 0 0 1-14 5M4 20v-5h5"/><path d="M9 10v4m3-7v10m3-7v4"/></svg>
+                自动听写
+              </button>
+              <label class="mini-button" for="srtInput">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+                导入 SRT
+              </label>
+              <input id="srtInput" type="file" accept=".srt,text/plain" hidden />
+              <button class="icon-button small" id="addSubtitleBtn" type="button" aria-label="在播放位置添加字幕" disabled>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+            <div class="transcribe-tip" id="transcribeTip">自动听写需要允许麦克风，并让视频声音从扬声器播放；音频可能由浏览器的语音服务处理，建议识别后手动校正。</div>
+
+            <div class="subtitle-style-card">
+              <div class="compact-field-row">
+                <label><span>语言</span><select id="subtitleLanguage"><option value="zh-CN">中文普通话</option><option value="en-US">English</option><option value="ja-JP">日本語</option><option value="ko-KR">한국어</option></select></label>
+                <label><span>位置</span><select id="subtitlePosition"><option value="bottom">底部</option><option value="middle">居中</option><option value="top">顶部</option></select></label>
+              </div>
+              <label class="slider-row subtitle-size-row"><span>字号</span><input id="subtitleSize" type="range" min="28" max="72" value="46" aria-label="字幕字号" /><output id="subtitleSizeOut">46</output></label>
+              <div class="compact-color-row">
+                <label>文字<input id="subtitleColor" type="color" value="#ffffff" aria-label="字幕文字颜色" /></label>
+                <label>底色<input id="subtitleBg" type="color" value="#000000" aria-label="字幕背景颜色" /></label>
+                <label class="checkbox-row tiny"><input id="subtitleBackground" type="checkbox" checked /><span class="custom-checkbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8"/></svg></span><span>背景</span></label>
+              </div>
+            </div>
+
+            <div class="empty-list" id="subtitleEmpty">尚无字幕，可自动听写、导入 SRT 或手动添加。</div>
+            <div class="subtitle-list" id="subtitleList"></div>
+          </section>
+
+          <section class="tool-panel" id="batchPanel" role="tabpanel" aria-labelledby="batchTab" hidden>
+            <div class="batch-summary">
+              <span class="batch-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="12" height="12" rx="2"/><path d="M8 20h10a2 2 0 0 0 2-2V8"/></svg></span>
+              <div><strong id="batchSummaryTitle">还没有批量任务</strong><span>所有视频共用右侧输出设置</span></div>
+            </div>
+            <div class="batch-queue" id="batchQueue"></div>
+            <label class="button ghost full" for="fileInput">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              添加更多视频
+            </label>
+            <button class="button primary full" id="batchExportBtn" type="button" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg>
+              批量导出
+            </button>
+            <p class="batch-helper">视频会逐个实时生成。浏览器可能询问是否允许多个文件下载。</p>
+          </section>
+        </aside>
+
+        <section class="stage-panel" aria-label="视频预览">
+          <div class="stage-toolbar">
+            <div class="orientation-switch" role="group" aria-label="快速切换方向">
+              <button class="orientation-btn active" data-ratio="9:16" type="button" aria-pressed="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7.5" y="2.5" width="9" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
+                竖屏
+              </button>
+              <button class="orientation-btn" data-ratio="16:9" type="button" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M10.5 15.5h3"/></svg>
+                横屏
+              </button>
+            </div>
+            <div class="canvas-meta">
+              <span id="canvasRatioLabel">9:16</span>
+              <span aria-hidden="true">·</span>
+              <span id="canvasSizeLabel">1080 × 1920</span>
+            </div>
+            <button class="icon-button" id="fitPreviewBtn" type="button" aria-label="适应预览区域" title="适应预览区域">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3m13 5h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
+          </div>
+
+          <div class="stage" id="stage">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-visual" aria-hidden="true">
+                <span class="frame horizontal"></span>
+                <span class="swap-arrow">
+                  <svg viewBox="0 0 24 24"><path d="M8 7h11m0 0-3-3m3 3-3 3M16 17H5m0 0 3 3m-3-3 3-3"/></svg>
+                </span>
+                <span class="frame vertical"></span>
+              </div>
+              <h1>横屏竖屏，自然转换</h1>
+              <p>保持人物和画面原始比例，通过等比裁切或背景填充适配新画幅。</p>
+              <button class="button primary large" id="emptyUploadBtn" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></svg>
+                选择一个视频
+              </button>
+            </div>
+
+            <div class="canvas-wrap" id="canvasWrap" hidden>
+              <canvas id="previewCanvas" aria-label="转换后的视频预览"></canvas>
+              <div class="safe-zone-overlay" id="safeZoneOverlay" aria-hidden="true" hidden>
+                <div class="safe-zone-frame" id="safeZoneFrame"><span id="safeZoneLabel">平台安全区</span></div>
+              </div>
+              <div class="focus-guide" id="focusGuide" aria-hidden="true">
+                <span></span>
+              </div>
+              <div class="drag-hint" id="dragHint">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20m-3-3 3 3-3 3M5 9l-3 3 3 3M9 5l3-3 3 3M9 19l3 3 3-3"/></svg>
+                拖动画面调整人物位置
+              </div>
+            </div>
+          </div>
+
+          <div class="timeline-panel" id="playerBar">
+            <div class="player-bar">
+              <button class="play-button" id="playBtn" type="button" aria-label="播放" disabled>
+                <svg class="play-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z"/></svg>
+                <svg class="pause-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+              </button>
+              <span class="timecode" id="currentTime">00:00.0</span>
+              <input class="timeline" id="timeline" type="range" min="0" max="100" value="0" step="0.01" aria-label="播放进度" disabled />
+              <span class="timecode muted" id="totalTime">00:00.0</span>
+              <button class="icon-button" id="volumeBtn" type="button" aria-label="静音" disabled>
+                <svg class="volume-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 4a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg>
+                <svg class="volume-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Zm5 5 5 5m0-5-5 5"/></svg>
+              </button>
+            </div>
+            <div class="clip-editor" id="clipEditor" hidden>
+              <div class="clip-track-wrap"><div class="playhead" id="clipPlayhead"></div><div class="clip-track" id="clipTrack" aria-label="保留片段"></div></div>
+              <div class="clip-actions">
+                <button id="setInBtn" type="button">设为入点</button>
+                <button id="splitBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 18h16M12 6v12"/></svg>分割</button>
+                <span id="selectedClipLabel">片段 1</span>
+                <button id="deleteClipBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v5m4-5v5M9 7l1-3h4l1 3m3 0-1 13H7L6 7"/></svg>删除</button>
+                <button id="setOutBtn" type="button">设为出点</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="inspector" aria-label="画幅设置">
+          <div class="inspector-heading">
+            <div>
+              <p class="eyebrow">画幅</p>
+              <h2>转换设置</h2>
+            </div>
+            <button class="text-button" id="resetBtn" type="button">重置</button>
+          </div>
+
+          <div class="control-section">
+            <div class="section-label"><span>目标比例</span><output id="ratioOutput">9:16</output></div>
+            <div class="ratio-grid" id="ratioGrid">
+              <button class="ratio-card active" data-ratio="9:16" type="button" aria-pressed="true"><span class="ratio-shape r916"></span><strong>9:16</strong><small>短视频</small></button>
+              <button class="ratio-card" data-ratio="16:9" type="button" aria-pressed="false"><span class="ratio-shape r169"></span><strong>16:9</strong><small>横屏</small></button>
+              <button class="ratio-card" data-ratio="1:1" type="button" aria-pressed="false"><span class="ratio-shape r11"></span><strong>1:1</strong><small>方形</small></button>
+              <button class="ratio-card" data-ratio="4:5" type="button" aria-pressed="false"><span class="ratio-shape r45"></span><strong>4:5</strong><small>动态</small></button>
+              <button class="ratio-card" data-ratio="3:4" type="button" aria-pressed="false"><span class="ratio-shape r34"></span><strong>3:4</strong><small>图文</small></button>
+              <button class="ratio-card" data-ratio="21:9" type="button" aria-pressed="false"><span class="ratio-shape r219"></span><strong>21:9</strong><small>电影</small></button>
+            </div>
+          </div>
+
+          <div class="control-section" id="transformControls">
+            <div class="section-label"><span>剪辑与变换</span><output id="clipDurationOut">—</output></div>
+            <div class="transform-grid">
+              <button id="rotateBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 1-2.3-5.7M20 4v7h-7"/></svg><span>旋转</span></button>
+              <button id="flipXBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M9 6 3 12l6 6m6-12 6 6-6 6"/></svg><span>水平翻转</span></button>
+              <button id="flipYBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h18M6 9l6-6 6 6M6 15l6 6 6-6"/></svg><span>垂直翻转</span></button>
+            </div>
+            <label class="full-field transform-speed"><span>播放速度</span><select id="speedSelect"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1.0×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="2">2.0×</option></select></label>
+          </div>
+
+          <div class="control-section">
+            <div class="section-label"><span>适配方式</span><button class="help-dot" type="button" aria-label="适配方式说明" title="三种方式都会保持原始比例，不拉伸视频">?</button></div>
+            <div class="segmented" id="fitModes" role="radiogroup" aria-label="适配方式">
+              <button class="active" data-fit="cover" type="button" role="radio" aria-checked="true">焦点裁切</button>
+              <button data-fit="blur" type="button" role="radio" aria-checked="false">模糊填充</button>
+              <button data-fit="contain" type="button" role="radio" aria-checked="false">完整留边</button>
+            </div>
+            <p class="helper" id="fitHelper">等比放大并裁掉画幅外区域，可拖动调整人物位置。</p>
+          </div>
+
+          <div class="control-section" id="focusControls">
+            <div class="section-label"><span>人物焦点</span><button class="text-button compact" id="centerFocusBtn" type="button">居中</button></div>
+            <label class="slider-row">
+              <span>水平</span>
+              <input id="focusX" type="range" min="0" max="100" value="50" aria-label="水平焦点" />
+              <output id="focusXOut">50%</output>
+            </label>
+            <label class="slider-row">
+              <span>垂直</span>
+              <input id="focusY" type="range" min="0" max="100" value="50" aria-label="垂直焦点" />
+              <output id="focusYOut">50%</output>
+            </label>
+          </div>
+
+          <div class="control-section" id="backgroundControls" hidden>
+            <div class="section-label"><span>背景样式</span></div>
+            <label class="slider-row blur-control">
+              <span>模糊</span>
+              <input id="blurAmount" type="range" min="8" max="60" value="28" aria-label="背景模糊强度" />
+              <output id="blurOut">28</output>
+            </label>
+            <label class="color-row">
+              <span>留边颜色</span>
+              <span class="color-input-wrap"><input id="backgroundColor" type="color" value="#090b10" aria-label="留边颜色" /><span id="colorValue">#090B10</span></span>
+            </label>
+          </div>
+
+          <div class="control-section">
+            <div class="section-label"><span>平台安全区</span><span class="safe-badge neutral">仅预览</span></div>
+            <label class="full-field safe-zone-select"><span>发布平台</span><select id="safeZoneSelect"><option value="none">不显示</option><option value="douyin">抖音 / TikTok</option><option value="xiaohongshu">小红书</option><option value="wechat">微信视频号</option><option value="youtube">YouTube Shorts</option><option value="instagram">Instagram Reels</option></select></label>
+            <p class="helper">虚线框内是建议放置人物、字幕和关键信息的区域，不会出现在导出视频中。</p>
+          </div>
+
+          <div class="control-section export-settings">
+            <div class="section-label"><span>输出</span><span class="safe-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 12 3 3 7-7"/></svg>不拉伸</span></div>
+            <div class="field-grid">
+              <label><span>清晰度</span><select id="resolutionSelect"><option value="720">720p</option><option value="1080" selected>1080p</option><option value="2160">4K</option></select></label>
+              <label><span>帧率</span><select id="fpsSelect"><option value="24">24 fps</option><option value="30" selected>30 fps</option><option value="60">60 fps</option></select></label>
+            </div>
+            <label class="full-field"><span>导出格式</span><select id="formatSelect" aria-label="导出格式"></select></label>
+            <label class="checkbox-row"><input id="includeAudio" type="checkbox" checked /><span class="custom-checkbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 12 4 4 8-8"/></svg></span><span>保留原视频声音</span></label>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <video id="sourceVideo" playsinline preload="metadata" hidden></video>
+
+    <div class="export-toast" id="exportToast" role="status" aria-live="polite" hidden>
+      <div class="export-spinner" aria-hidden="true"></div>
+      <div class="export-copy">
+        <div><strong id="exportTitle">正在生成视频</strong><span id="exportPercent">0%</span></div>
+        <div class="progress-track"><span id="exportProgress"></span></div>
+        <p id="exportDetail">视频将在本地实时生成，请保持此页面打开。</p>
+      </div>
+      <button class="icon-button" id="cancelExportBtn" type="button" aria-label="取消导出">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+
+    <div class="notice" id="notice" role="alert" hidden></div>
+    <script>
+const $ = (selector) => document.querySelector(selector);
+const $ = (selector) => [...document.querySelectorAll(selector)];
+
+const video = $("#sourceVideo");
+const canvas = $("#previewCanvas");
+const ctx = canvas.getContext("2d", { alpha: false });
+const orientedCanvas = document.createElement("canvas");
+const orientedCtx = orientedCanvas.getContext("2d", { alpha: false });
+
+const ratioPresets = {
+  "9:16": [9, 16], "16:9": [16, 9], "1:1": [1, 1],
+  "4:5": [4, 5], "3:4": [3, 4], "21:9": [21, 9],
+};
+
+const fitCopy = {
+  cover: "等比放大并裁掉画幅外区域，可拖动调整人物位置。",
+  blur: "完整保留原画面，并用同一视频的模糊画面填满背景。",
+  contain: "完整保留原画面，空余区域使用所选颜色填充。",
+};
+
+const safeZones = {
+  none: null,
+  douyin: { label: "抖音 / TikTok 安全区", top: 8, right: 18, bottom: 22, left: 7 },
+  xiaohongshu: { label: "小红书安全区", top: 8, right: 7, bottom: 20, left: 7 },
+  wechat: { label: "微信视频号安全区", top: 8, right: 8, bottom: 19, left: 8 },
+  youtube: { label: "YouTube Shorts 安全区", top: 7, right: 13, bottom: 17, left: 7 },
+  instagram: { label: "Instagram Reels 安全区", top: 9, right: 8, bottom: 20, left: 8 },
+};
+
+const state = {
+  queue: [], activeIndex: -1, file: null, objectUrl: null,
+  ratio: "9:16", fit: "cover", focusX: 0.5, focusY: 0.5,
+  blur: 28, background: "#090b10", rotation: 0, flipX: false, flipY: false, speed: 1,
+  safeZone: "none", segments: [], selectedSegmentId: null, subtitles: [],
+  subtitleStyle: { size: 46, position: "bottom", color: "#ffffff", background: "#000000", showBackground: true },
+  loaded: false, exporting: false, exportCancelled: false, batchRunning: false, batchCancelled: false,
+  recorder: null, animationFrame: 0, previewMax: 720,
+  audioContext: null, audioSource: null, audioDestination: null, monitorGain: null,
+  loadResolver: null, replaceMode: false, previewAdvancePending: false,
+  recognition: null, transcribing: false, lastTranscriptEnd: 0,
+};
+
+let idCounter = 0;
+const makeId = (prefix) => `${prefix}-${Date.now()}-${++idCounter}`;
+
+function formatTime(value, decimals = false) {
+  if (!Number.isFinite(value)) return decimals ? "00:00.0" : "00:00";
+  const mins = Math.floor(value / 60);
+  const secs = Math.max(0, value % 60);
+  return `${String(mins).padStart(2, "0")}:${decimals ? secs.toFixed(1).padStart(4, "0") : String(Math.floor(secs)).padStart(2, "0")}`;
+}
+
+function setRangeFill(input) {
+  if (!input) return;
+  const min = Number(input.min || 0);
+  const max = Number(input.max || 100);
+  const value = ((Number(input.value) - min) / Math.max(1, max - min)) * 100;
+  input.style.setProperty("--value", `${value}%`);
+}
+
+function showNotice(message, type = "info", duration = 3600) {
+  const notice = $("#notice");
+  notice.textContent = message;
+  notice.classList.toggle("error", type === "error");
+  notice.hidden = false;
+  clearTimeout(showNotice.timer);
+  showNotice.timer = setTimeout(() => { notice.hidden = true; }, duration);
+}
+
+const currentItem = () => state.queue[state.activeIndex] || null;
+const activeSegments = () => [...state.segments].sort((a, b) => a.start - b.start);
+const selectedSegment = () => state.segments.find((segment) => segment.id === state.selectedSegmentId) || state.segments[0] || null;
+const totalKeptDuration = () => state.segments.reduce((sum, segment) => sum + Math.max(0, segment.end - segment.start), 0);
+const segmentAt = (time) => activeSegments().find((segment) => time >= segment.start - 0.02 && time < segment.end - 0.02) || null;
+
+function createQueueItem(file) {
+  return { id: makeId("media"), file, duration: 0, width: 0, height: 0, segments: [], subtitles: [], status: "ready" };
+}
+
+function outputDimensions(base = Number($("#resolutionSelect").value)) {
+  const [rw, rh] = ratioPresets[state.ratio];
+  return rw >= rh ? [Math.round((base * rw) / rh), base] : [base, Math.round((base * rh) / rw)];
+}
+
+function previewDimensions() {
+  const [rw, rh] = ratioPresets[state.ratio];
+  return rw >= rh ? [state.previewMax, Math.round((state.previewMax * rh) / rw)] : [Math.round((state.previewMax * rw) / rh), state.previewMax];
+}
+
+function resizePreviewCanvas() {
+  if (state.exporting) return;
+  [canvas.width, canvas.height] = previewDimensions();
+  const [rw, rh] = ratioPresets[state.ratio];
+  const stage = $("#stage");
+  const maxWidth = Math.max(220, stage.clientWidth - 56);
+  const maxHeight = Math.max(240, stage.clientHeight - 56);
+  let displayWidth = maxWidth;
+  let displayHeight = (displayWidth * rh) / rw;
+  if (displayHeight > maxHeight) {
+    displayHeight = maxHeight;
+    displayWidth = (displayHeight * rw) / rh;
+  }
+  $("#canvasWrap").style.width = `${displayWidth}px`;
+  $("#canvasWrap").style.height = `${displayHeight}px`;
+  drawFrame();
+}
+
+function cropRect(sourceWidth, sourceHeight, targetWidth, targetHeight, focusX = state.focusX, focusY = state.focusY) {
+  const sourceRatio = sourceWidth / sourceHeight;
+  const targetRatio = targetWidth / targetHeight;
+  let sw;
+  let sh;
+  if (sourceRatio > targetRatio) { sh = sourceHeight; sw = sourceHeight * targetRatio; }
+  else { sw = sourceWidth; sh = sourceWidth / targetRatio; }
+  const sx = Math.max(0, Math.min(sourceWidth - sw, (sourceWidth - sw) * focusX));
+  const sy = Math.max(0, Math.min(sourceHeight - sh, (sourceHeight - sh) * focusY));
+  return { sx, sy, sw, sh };
+}
+
+function drawCover(targetCtx, source, targetWidth, targetHeight, focusX = state.focusX, focusY = state.focusY) {
+  const sourceWidth = source.videoWidth || source.width;
+  const sourceHeight = source.videoHeight || source.height;
+  const { sx, sy, sw, sh } = cropRect(sourceWidth, sourceHeight, targetWidth, targetHeight, focusX, focusY);
+  targetCtx.drawImage(source, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+}
+
+function drawContain(targetCtx, source, targetWidth, targetHeight) {
+  const sourceWidth = source.videoWidth || source.width;
+  const sourceHeight = source.videoHeight || source.height;
+  const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  targetCtx.drawImage(source, (targetWidth - width) / 2, (targetHeight - height) / 2, width, height);
+}
+
+function getRenderSource() {
+  if (state.rotation === 0 && !state.flipX && !state.flipY) return video;
+  const rotated = state.rotation === 90 || state.rotation === 270;
+  const width = rotated ? video.videoHeight : video.videoWidth;
+  const height = rotated ? video.videoWidth : video.videoHeight;
+  if (orientedCanvas.width !== width || orientedCanvas.height !== height) { orientedCanvas.width = width; orientedCanvas.height = height; }
+  orientedCtx.save();
+  orientedCtx.fillStyle = "#000";
+  orientedCtx.fillRect(0, 0, width, height);
+  orientedCtx.translate(width / 2, height / 2);
+  orientedCtx.scale(state.flipX ? -1 : 1, state.flipY ? -1 : 1);
+  orientedCtx.rotate((state.rotation * Math.PI) / 180);
+  orientedCtx.drawImage(video, -video.videoWidth / 2, -video.videoHeight / 2);
+  orientedCtx.restore();
+  return orientedCanvas;
+}
+
+function wrapText(text, maxWidth) {
+  const lines = [];
+  let line = "";
+  Array.from(text || "").forEach((char) => {
+    const test = line + char;
+    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line.trim()); line = char; }
+    else line = test;
+  });
+  if (line.trim()) lines.push(line.trim());
+  return lines.slice(0, 3);
+}
+
+function drawSubtitles(width, height) {
+  const active = state.subtitles.filter((subtitle) => video.currentTime >= subtitle.start && video.currentTime <= subtitle.end && subtitle.text.trim());
+  if (!active.length) return;
+  const text = active.map((subtitle) => subtitle.text.trim()).join("\n");
+  const fontSize = Math.max(16, state.subtitleStyle.size * (width / 1080));
+  const lineHeight = fontSize * 1.35;
+  ctx.save();
+  ctx.font = `700 ${fontSize}px Inter, "PingFang SC", "Microsoft YaHei", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const lines = text.split("\n").flatMap((paragraph) => wrapText(paragraph, width * 0.82));
+  const blockHeight = lines.length * lineHeight;
+  const centerY = { top: height * 0.16, middle: height * 0.5, bottom: height * 0.84 }[state.subtitleStyle.position];
+  const maxLineWidth = Math.max(...lines.map((line) => ctx.measureText(line).width), 0);
+  if (state.subtitleStyle.showBackground) {
+    ctx.globalAlpha = 0.72;
+    ctx.fillStyle = state.subtitleStyle.background;
+    const x = (width - maxLineWidth) / 2 - fontSize * 0.45;
+    const y = centerY - blockHeight / 2 - fontSize * 0.25;
+    const w = maxLineWidth + fontSize * 0.9;
+    const h = blockHeight + fontSize * 0.5;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, fontSize * 0.22); ctx.fill(); }
+    else ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = state.subtitleStyle.color;
+  ctx.shadowColor = "rgba(0,0,0,.75)";
+  ctx.shadowBlur = fontSize * 0.12;
+  lines.forEach((line, index) => ctx.fillText(line, width / 2, centerY - blockHeight / 2 + lineHeight * (index + 0.5)));
+  ctx.restore();
+}
+
+function drawFrame() {
+  if (!state.loaded || !video.videoWidth || !canvas.width || video.readyState < 2) return;
+  const width = canvas.width;
+  const height = canvas.height;
+  const source = getRenderSource();
+  ctx.save();
+  ctx.fillStyle = state.background;
+  ctx.fillRect(0, 0, width, height);
+  if (state.fit === "cover") drawCover(ctx, source, width, height);
+  else if (state.fit === "blur") {
+    ctx.save();
+    ctx.filter = `blur(${state.blur * Math.max(1, width / 720)}px) brightness(0.62)`;
+    ctx.translate(-width * 0.06, -height * 0.06);
+    drawCover(ctx, source, width * 1.12, height * 1.12, 0.5, 0.5);
+    ctx.restore();
+    ctx.fillStyle = "rgba(0,0,0,.08)";
+    ctx.fillRect(0, 0, width, height);
+    drawContain(ctx, source, width, height);
+  } else drawContain(ctx, source, width, height);
+  ctx.restore();
+  drawSubtitles(width, height);
+}
+
+async function keepPreviewInsideSegments() {
+  if (state.exporting || state.previewAdvancePending || video.paused || !state.segments.length || segmentAt(video.currentTime)) return;
+  const segments = activeSegments();
+  const next = segments.find((segment) => segment.start > video.currentTime);
+  state.previewAdvancePending = true;
+  if (next) { await seekVideo(next.start); if (!state.exporting) await video.play(); }
+  else { video.pause(); await seekVideo(segments[0].start); }
+  state.previewAdvancePending = false;
+}
+
+function paintLoop() {
+  drawFrame();
+  keepPreviewInsideSegments();
+  if (!video.paused && !video.ended) state.animationFrame = requestAnimationFrame(paintLoop);
+}
+
+function updateTimeline() {
+  if (!state.loaded || state.exporting) return;
+  const current = video.currentTime || 0;
+  $("#timeline").value = current;
+  setRangeFill($("#timeline"));
+  $("#currentTime").textContent = formatTime(current, true);
+  $("#clipPlayhead").style.left = `calc(${video.duration ? (current / video.duration) * 100 : 0}% + 3px)`;
+}
+
+function renderSegments() {
+  const track = $("#clipTrack");
+  track.replaceChildren();
+  const duration = video.duration || currentItem()?.duration || 1;
+  activeSegments().forEach((segment, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `clip-segment${segment.id === state.selectedSegmentId ? " active" : ""}`;
+    button.style.left = `${(segment.start / duration) * 100}%`;
+    button.style.width = `${((segment.end - segment.start) / duration) * 100}%`;
+    button.setAttribute("aria-label", `选择片段 ${index + 1}，${formatTime(segment.start, true)} 到 ${formatTime(segment.end, true)}`);
+    button.addEventListener("click", () => { state.selectedSegmentId = segment.id; video.currentTime = segment.start; renderSegments(); });
+    track.append(button);
+  });
+  const selected = selectedSegment();
+  const selectedIndex = Math.max(0, activeSegments().findIndex((segment) => segment.id === state.selectedSegmentId));
+  $("#selectedClipLabel").textContent = selected ? `片段 ${selectedIndex + 1} · ${formatTime(selected.end - selected.start, true)}` : "无片段";
+  $("#clipDurationOut").textContent = state.loaded ? `${formatTime(totalKeptDuration() / state.speed, true)} 输出` : "—";
+}
+
+function updateCurrentItemData() {
+  const item = currentItem();
+  if (item) { item.segments = state.segments; item.subtitles = state.subtitles; }
+}
+
+function setRatio(ratio) {
+  if (!ratioPresets[ratio] || state.exporting) return;
+  state.ratio = ratio;
+  $("[data-ratio]").forEach((button) => {
+    const active = button.dataset.ratio === ratio;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  $("#ratioOutput").textContent = ratio;
+  $("#canvasRatioLabel").textContent = ratio;
+  const [width, height] = outputDimensions();
+  $("#canvasSizeLabel").textContent = `${width} × ${height}`;
+  resizePreviewCanvas();
+}
+
+function setFit(mode) {
+  if (!fitCopy[mode] || state.exporting) return;
+  state.fit = mode;
+  $("#fitModes button").forEach((button) => {
+    const active = button.dataset.fit === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-checked", String(active));
+  });
+  $("#fitHelper").textContent = fitCopy[mode];
+  $("#focusControls").hidden = mode !== "cover";
+  $("#backgroundControls").hidden = mode === "cover";
+  $(".blur-control").hidden = mode !== "blur";
+  $("#dragHint").hidden = mode !== "cover";
+  drawFrame();
+}
+
+function updateFocus(x, y) {
+  state.focusX = Math.max(0, Math.min(1, x));
+  state.focusY = Math.max(0, Math.min(1, y));
+  $("#focusX").value = Math.round(state.focusX * 100);
+  $("#focusY").value = Math.round(state.focusY * 100);
+  $("#focusXOut").textContent = `${Math.round(state.focusX * 100)}%`;
+  $("#focusYOut").textContent = `${Math.round(state.focusY * 100)}%`;
+  setRangeFill($("#focusX"));
+  setRangeFill($("#focusY"));
+  $("#focusGuide").style.left = `${state.focusX * 100}%`;
+  $("#focusGuide").style.top = `${state.focusY * 100}%`;
+  drawFrame();
+}
+
+function updateSafeZone(value) {
+  state.safeZone = value;
+  const config = safeZones[value];
+  $("#safeZoneOverlay").hidden = !config || !state.loaded;
+  if (!config) return;
+  $("#safeZoneFrame").style.inset = `${config.top}% ${config.right}% ${config.bottom}% ${config.left}%`;
+  $("#safeZoneLabel").textContent = config.label;
+}
+
+function drawActiveThumbnail() {
+  const thumb = $(`.media-card[data-index="${state.activeIndex}"] canvas`);
+  if (!thumb || video.readyState < 2) return;
+  thumb.width = 116;
+  thumb.height = 84;
+  const thumbContext = thumb.getContext("2d", { alpha: false });
+  thumbContext.fillStyle = "#090b10";
+  thumbContext.fillRect(0, 0, 116, 84);
+  drawCover(thumbContext, video, 116, 84, 0.5, 0.5);
+}
+
+function renderMediaLists() {
+  const mediaList = $("#mediaList");
+  const batchQueue = $("#batchQueue");
+  mediaList.replaceChildren();
+  batchQueue.replaceChildren();
+  state.queue.forEach((item, index) => {
+    const mediaButton = document.createElement("button");
+    mediaButton.type = "button";
+    mediaButton.dataset.index = index;
+    mediaButton.className = `media-card${index === state.activeIndex ? " active" : ""}${item.status === "done" ? " done" : ""}`;
+    mediaButton.innerHTML = `<span class="media-thumb"><canvas aria-hidden="true"></canvas><span class="media-duration">${formatTime(item.duration)}</span></span><span class="media-copy"><strong></strong><span class="media-status"></span></span><span class="media-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m7 12 3 3 7-7"/></svg></span>`;
+    mediaButton.querySelector("strong").textContent = item.file.name;
+    mediaButton.querySelector(".media-status").textContent = item.status === "done" ? "已导出" : item.width ? `${item.width} × ${item.height}` : `${(item.file.size / 1024 / 1024).toFixed(1)} MB`;
+    mediaButton.addEventListener("click", () => loadQueueItem(index));
+    mediaList.append(mediaButton);
+    const batchButton = document.createElement("button");
+    batchButton.type = "button";
+    batchButton.className = `batch-item${index === state.activeIndex ? " active" : ""}${item.status === "done" ? " done" : ""}`;
+    batchButton.innerHTML = `<span class="batch-item-index">${index + 1}</span><span class="batch-item-name"></span><span class="batch-item-status">${item.status === "done" ? "已完成" : "待处理"}</span>`;
+    batchButton.querySelector(".batch-item-name").textContent = item.file.name;
+    batchButton.addEventListener("click", () => loadQueueItem(index));
+    batchQueue.append(batchButton);
+  });
+  $("#batchCount").textContent = state.queue.length;
+  $("#batchSummaryTitle").textContent = state.queue.length ? `${state.queue.length} 个视频待处理` : "还没有批量任务";
+  $("#batchExportBtn").disabled = !state.queue.length || state.batchRunning;
+  $("#dropZone").hidden = Boolean(state.queue.length);
+  drawActiveThumbnail();
+}
+
+function addFiles(files, replaceActive = false) {
+  const valid = [...files].filter((file) => file.type.startsWith("video/"));
+  if (!valid.length) return showNotice("请选择有效的视频文件。", "error");
+  if (replaceActive && state.activeIndex >= 0) {
+    state.queue.splice(state.activeIndex, 1, createQueueItem(valid[0]));
+    loadQueueItem(state.activeIndex);
+  } else {
+    const known = new Set(state.queue.map((item) => `${item.file.name}-${item.file.size}-${item.file.lastModified}`));
+    valid.forEach((file) => {
+      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      if (!known.has(key)) { state.queue.push(createQueueItem(file)); known.add(key); }
+    });
+    if (state.activeIndex < 0) loadQueueItem(0);
+  }
+  renderMediaLists();
+  if (valid.length > 1) showNotice(`已加入 ${valid.length} 个视频，可在“批量”中统一导出。`);
+}
+
+function loadQueueItem(index) {
+  const item = state.queue[index];
+  if (!item) return Promise.resolve(false);
+  if (state.exporting && !state.batchRunning) return Promise.resolve(false);
+  if (index === state.activeIndex && state.loaded && video.src) return Promise.resolve(true);
+  video.pause();
+  state.activeIndex = index;
+  state.file = item.file;
+  state.loaded = false;
+  state.segments = item.segments;
+  state.subtitles = item.subtitles;
+  state.selectedSegmentId = item.segments[0]?.id || null;
+  if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+  state.objectUrl = URL.createObjectURL(item.file);
+  video.src = state.objectUrl;
+  video.load();
+  $("#projectName").textContent = item.file.name.replace(/\.[^/.]+$/, "");
+  renderMediaLists();
+  renderSubtitles();
+  return new Promise((resolve) => { state.loadResolver = resolve; });
+}
+
+function switchTool(panelId) {
+  $(".tool-tabs button").forEach((button) => {
+    const active = button.dataset.panel === panelId;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  $(".tool-panel").forEach((panel) => {
+    const active = panel.id === panelId;
+    panel.classList.toggle("active", active);
+    panel.hidden = !active;
+  });
+}
+
+function renderSubtitles() {
+  const list = $("#subtitleList");
+  list.replaceChildren();
+  $("#subtitleEmpty").hidden = Boolean(state.subtitles.length);
+  state.subtitles.sort((a, b) => a.start - b.start).forEach((subtitle, index) => {
+    const item = document.createElement("div");
+    item.dataset.id = subtitle.id;
+    item.className = `subtitle-item${video.currentTime >= subtitle.start && video.currentTime <= subtitle.end ? " active" : ""}`;
+    const top = document.createElement("div");
+    top.className = "subtitle-item-top";
+    const start = document.createElement("input");
+    Object.assign(start, { type: "number", min: "0", step: "0.1", value: Number(subtitle.start).toFixed(1) });
+    start.setAttribute("aria-label", `字幕 ${index + 1} 开始时间`);
+    const separator = document.createElement("span"); separator.textContent = "至";
+    const end = document.createElement("input");
+    Object.assign(end, { type: "number", min: "0", step: "0.1", value: Number(subtitle.end).toFixed(1) });
+    end.setAttribute("aria-label", `字幕 ${index + 1} 结束时间`);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `删除字幕 ${index + 1}`);
+    remove.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16m-10 4v5m4-5v5M9 7l1-3h4l1 3m3 0-1 13H7L6 7"/></svg>';
+    top.append(start, separator, end, remove);
+    const textarea = document.createElement("textarea");
+    textarea.value = subtitle.text;
+    textarea.setAttribute("aria-label", `字幕 ${index + 1} 内容`);
+    item.append(top, textarea);
+    item.addEventListener("click", (event) => {
+      if (!event.target.matches("textarea,input,button")) video.currentTime = subtitle.start;
+    });
+    start.addEventListener("change", () => {
+      subtitle.start = Math.max(0, Math.min(Number(start.value), subtitle.end - 0.1));
+      start.value = Number(subtitle.start).toFixed(1); updateCurrentItemData(); drawFrame();
+    });
+    end.addEventListener("change", () => {
+      subtitle.end = Math.min(video.duration || Infinity, Math.max(Number(end.value), subtitle.start + 0.1));
+      end.value = Number(subtitle.end).toFixed(1); updateCurrentItemData(); drawFrame();
+    });
+    textarea.addEventListener("input", () => { subtitle.text = textarea.value; updateCurrentItemData(); drawFrame(); });
+    remove.addEventListener("click", () => {
+      state.subtitles.splice(state.subtitles.indexOf(subtitle), 1); updateCurrentItemData(); renderSubtitles(); drawFrame();
+    });
+    list.append(item);
+  });
+}
+
+function updateSubtitleActiveStates() {
+  $(".subtitle-item").forEach((element) => {
+    const subtitle = state.subtitles.find((item) => item.id === element.dataset.id);
+    element.classList.toggle("active", Boolean(subtitle && video.currentTime >= subtitle.start && video.currentTime <= subtitle.end));
+  });
+}
+
+function addSubtitle(text = "输入字幕", startTime = video.currentTime, endTime = Math.min(video.duration || startTime + 2.5, startTime + 2.5)) {
+  if (!state.loaded) return;
+  state.subtitles.push({ id: makeId("subtitle"), start: Math.max(0, startTime), end: Math.max(startTime + 0.2, endTime), text });
+  updateCurrentItemData(); renderSubtitles(); drawFrame();
+}
+
+function srtTimeToSeconds(value) {
+  const match = value.trim().match(/(\d+):(\d+):(\d+)[,.](\d+)/);
+  return match ? Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]) + Number(match[4].padEnd(3, "0").slice(0, 3)) / 1000 : 0;
+}
+
+function parseSrt(text) {
+  return text.replace(/\r/g, "").trim().split(/\n{2,}/).map((block) => {
+    const lines = block.split("\n");
+    const timeIndex = lines.findIndex((line) => line.includes("-->"));
+    if (timeIndex < 0) return null;
+    const [start, end] = lines[timeIndex].split("-->").map(srtTimeToSeconds);
+    return { id: makeId("subtitle"), start, end, text: lines.slice(timeIndex + 1).join("\n").replace(/<[^>]+>/g, "").trim() };
+  }).filter((item) => item && item.end > item.start && item.text);
+}
+
+function stopTranscription(message) {
+  state.transcribing = false;
+  if (state.recognition) { try { state.recognition.stop(); } catch (_) { /* already stopped */ } }
+  state.recognition = null;
+  $("#autoSubtitleBtn").classList.remove("recording");
+  $("#autoSubtitleBtn").innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5M20 4v5h-5M20 12a8 8 0 0 1-14 5M4 20v-5h5"/><path d="M9 10v4m3-7v10m3-7v4"/></svg>自动听写';
+  if (message) showNotice(message);
+}
+
+async function toggleAutoTranscription() {
+  if (state.transcribing) { video.pause(); stopTranscription("自动听写已停止，可以逐条校正字幕。" ); return; }
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) return showNotice("当前浏览器不支持自动听写，请使用 Chrome/Edge，或导入 SRT 字幕。", "error", 5000);
+  if (!state.loaded) return;
+  const recognition = new Recognition();
+  recognition.lang = $("#subtitleLanguage").value;
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  state.recognition = recognition;
+  state.transcribing = true;
+  state.lastTranscriptEnd = activeSegments()[0]?.start || 0;
+  $("#autoSubtitleBtn").classList.add("recording");
+  $("#autoSubtitleBtn").textContent = "停止听写";
+  recognition.onresult = (event) => {
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      if (!event.results[index].isFinal) continue;
+      const text = event.results[index][0].transcript.trim();
+      if (!text) continue;
+      const end = video.currentTime;
+      const start = Math.max(state.lastTranscriptEnd, end - Math.min(5, Math.max(1.2, text.length * 0.18)));
+      addSubtitle(text, start, Math.max(start + 0.4, end));
+      state.lastTranscriptEnd = end;
+    }
+  };
+  recognition.onerror = (event) => {
+    if (event.error !== "no-speech" && event.error !== "aborted") stopTranscription("语音识别未能继续，请检查麦克风权限或改用 SRT。" );
+  };
+  recognition.onend = () => {
+    if (state.transcribing && !video.paused) { try { recognition.start(); } catch (_) { stopTranscription("自动听写已结束。" ); } }
+  };
+  try {
+    await seekVideo(activeSegments()[0]?.start || 0);
+    video.muted = false;
+    $("#volumeBtn").classList.remove("muted-audio");
+    recognition.start();
+    await video.play();
+    showNotice("正在自动听写：请保持视频声音开启，并允许浏览器使用麦克风。", "info", 5200);
+  } catch (error) { console.error(error); stopTranscription("无法启动自动听写，请检查浏览器麦克风权限。" ); }
+}
+
+function setupFormatOptions() {
+  const select = $("#formatSelect");
+  const candidates = [
+    { mime: "video/mp4;codecs=h264,aac", label: "MP4 · H.264", ext: "mp4" }, { mime: "video/mp4", label: "MP4", ext: "mp4" },
+    { mime: "video/webm;codecs=vp9,opus", label: "WebM · VP9", ext: "webm" }, { mime: "video/webm;codecs=vp8,opus", label: "WebM · VP8", ext: "webm" },
+    { mime: "video/webm", label: "WebM", ext: "webm" },
+  ];
+  const seen = new Set();
+  candidates.forEach((item) => {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(item.mime) && !seen.has(item.ext)) {
+      seen.add(item.ext);
+      const option = document.createElement("option"); option.value = JSON.stringify(item); option.textContent = item.label; select.append(option);
+    }
+  });
+  if (!select.options.length) { const option = document.createElement("option"); option.value = ""; option.textContent = "当前浏览器不支持导出"; select.append(option); }
+}
+
+function initAudioCapture() {
+  if (!$("#includeAudio").checked) return [];
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return [];
+  if (!state.audioContext) {
+    state.audioContext = new AudioContextClass();
+    state.audioSource = state.audioContext.createMediaElementSource(video);
+    state.audioDestination = state.audioContext.createMediaStreamDestination();
+    state.monitorGain = state.audioContext.createGain();
+    state.audioSource.connect(state.audioDestination);
+    state.audioSource.connect(state.monitorGain);
+    state.monitorGain.connect(state.audioContext.destination);
+  }
+  state.monitorGain.gain.value = 0;
+  state.audioContext.resume();
+  return state.audioDestination.stream.getAudioTracks().map((track) => track.clone());
+}
+
+async function seekVideo(time) {
+  const target = Math.max(0, Math.min(time, Math.max(0, (video.duration || time) - 0.001)));
+  if (Math.abs(video.currentTime - target) < 0.025) return;
+  await new Promise((resolve) => { video.addEventListener("seeked", resolve, { once: true }); video.currentTime = target; });
+}
+
+function downloadBlob(blob, item, format) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${item.file.name.replace(/\.[^/.]+$/, "")}_${state.ratio.replace(":", "x")}.${format.ext}`;
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 8000);
+}
+
+async function performExport(batchPosition = null) {
+  if (!state.loaded || state.exporting) return null;
+  if (!canvas.captureStream || !window.MediaRecorder || !$("#formatSelect").value) {
+    showNotice("当前浏览器不支持本地视频导出，请使用最新版 Chrome、Edge 或 Safari。", "error"); return null;
+  }
+  const segments = activeSegments().filter((segment) => segment.end - segment.start > 0.04);
+  if (!segments.length) { showNotice("至少需要保留一个有效视频片段。", "error"); return null; }
+  const format = JSON.parse($("#formatSelect").value);
+  const [width, height] = outputDimensions();
+  const fps = Number($("#fpsSelect").value);
+  const totalSourceDuration = segments.reduce((sum, segment) => sum + segment.end - segment.start, 0);
+  const restoreTime = video.currentTime;
+  const restoreRate = video.playbackRate;
+  const item = currentItem();
+  const chunks = [];
+  state.exporting = true;
+  state.exportCancelled = false;
+  video.pause();
+  video.playbackRate = state.speed;
+  $("#playBtn").classList.remove("playing");
+  $("#exportBtn").disabled = true;
+  $("#batchExportBtn").disabled = true;
+  $("#exportToast").hidden = false;
+  $("#exportProgress").style.width = "0%";
+  $("#exportPercent").textContent = "0%";
+  $("#exportTitle").textContent = batchPosition ? `批量导出 ${batchPosition.current}/${batchPosition.total}` : "正在生成视频";
+  $("#exportDetail").textContent = `${width} × ${height} · ${state.speed}× · ${segments.length} 个片段`;
+  return new Promise(async (resolve) => {
+    let stream;
+    let recorder;
+    let segmentIndex = 0;
+    let completedSource = 0;
+    let switching = false;
+    const finish = async (blob = null) => {
+      if (stream) stream.getTracks().forEach((track) => track.stop());
+      if (state.monitorGain) state.monitorGain.gain.value = video.muted ? 0 : 1;
+      state.exporting = false; state.recorder = null;
+      $("#exportToast").hidden = true;
+      $("#exportBtn").disabled = false;
+      $("#batchExportBtn").disabled = !state.queue.length || state.batchRunning;
+      video.playbackRate = restoreRate;
+      resizePreviewCanvas();
+      await seekVideo(Math.min(restoreTime, video.duration || restoreTime));
+      drawFrame(); updateTimeline();
+      resolve(blob ? { blob, format, item } : null);
+    };
+    try {
+      await seekVideo(segments[0].start);
+      canvas.width = width; canvas.height = height; drawFrame();
+      stream = canvas.captureStream(fps);
+      initAudioCapture().forEach((track) => stream.addTrack(track));
+      const bitsPerSecond = width * height >= 3840 * 2160 ? 32_000_000 : width * height >= 1920 * 1080 ? 12_000_000 : 6_000_000;
+      recorder = new MediaRecorder(stream, { mimeType: format.mime, videoBitsPerSecond: bitsPerSecond });
+      state.recorder = recorder;
+      recorder.ondataavailable = (event) => { if (event.data && event.data.size > 0) chunks.push(event.data); };
+      recorder.onerror = () => showNotice("导出时发生错误，请降低清晰度后重试。", "error");
+      recorder.onstop = () => finish(!state.exportCancelled && chunks.length ? new Blob(chunks, { type: format.mime.split(";")[0] }) : null);
+      recorder.start(600);
+      await video.play();
+      const renderExport = async () => {
+        if (!state.exporting || state.exportCancelled) return;
+        drawFrame();
+        const segment = segments[segmentIndex];
+        const withinSegment = Math.max(0, Math.min(segment.end - segment.start, video.currentTime - segment.start));
+        const percent = Math.round(Math.min(1, (completedSource + withinSegment) / totalSourceDuration) * 100);
+        $("#exportPercent").textContent = `${percent}%`; $("#exportProgress").style.width = `${percent}%`;
+        if (!switching && (video.currentTime >= segment.end - 0.035 || video.ended)) {
+          if (segmentIndex >= segments.length - 1) { video.pause(); if (recorder.state !== "inactive") recorder.stop(); return; }
+          switching = true;
+          completedSource += segment.end - segment.start;
+          segmentIndex += 1;
+          video.pause();
+          if (recorder.state === "recording") recorder.pause();
+          await seekVideo(segments[segmentIndex].start);
+          if (recorder.state === "paused") recorder.resume();
+          await video.play();
+          switching = false;
+        }
+        requestAnimationFrame(renderExport);
+      };
+      requestAnimationFrame(renderExport);
+    } catch (error) {
+      console.error(error);
+      if (recorder && recorder.state !== "inactive") recorder.stop(); else finish(null);
+      showNotice("无法开始导出，请尝试降低清晰度或更换浏览器。", "error");
+    }
+  });
+}
+
+async function exportVideo() {
+  const result = await performExport();
+  if (!result) { if (state.exportCancelled) showNotice("已取消导出。" ); return; }
+  downloadBlob(result.blob, result.item, result.format);
+  result.item.status = "done"; renderMediaLists(); showNotice("视频已生成，下载已开始。" );
+}
+
+async function batchExport() {
+  if (!state.queue.length || state.batchRunning) return;
+  const restoreIndex = Math.max(0, state.activeIndex);
+  state.batchRunning = true; state.batchCancelled = false; $("#batchExportBtn").disabled = true;
+  showNotice("批量任务已开始，浏览器可能询问是否允许多个下载。", "info", 5000);
+  for (let index = 0; index < state.queue.length; index += 1) {
+    if (state.batchCancelled) break;
+    await loadQueueItem(index);
+    const result = await performExport({ current: index + 1, total: state.queue.length });
+    if (!result) { if (state.exportCancelled) state.batchCancelled = true; break; }
+    downloadBlob(result.blob, result.item, result.format);
+    result.item.status = "done"; renderMediaLists();
+  }
+  state.batchRunning = false;
+  await loadQueueItem(Math.min(restoreIndex, state.queue.length - 1));
+  $("#batchExportBtn").disabled = !state.queue.length;
+  showNotice(state.batchCancelled ? "批量导出已停止。" : "批量导出完成，文件已逐个下载。" );
+}
+
+video.addEventListener("loadedmetadata", () => {
+  const item = currentItem();
+  if (!item) return;
+  state.loaded = true;
+  Object.assign(item, { duration: video.duration, width: video.videoWidth, height: video.videoHeight });
+  if (!item.segments.length) item.segments.push({ id: makeId("clip"), start: 0, end: video.duration });
+  state.segments = item.segments; state.subtitles = item.subtitles;
+  state.selectedSegmentId = state.segments.some((segment) => segment.id === state.selectedSegmentId) ? state.selectedSegmentId : state.segments[0].id;
+  $("#emptyState").hidden = true; $("#canvasWrap").hidden = false; $("#clipEditor").hidden = false;
+  $("#timeline").max = video.duration; $("#totalTime").textContent = formatTime(video.duration, true);
+  ["#replaceBtn", "#exportBtn", "#playBtn", "#timeline", "#volumeBtn", "#autoSubtitleBtn", "#addSubtitleBtn"].forEach((selector) => { $(selector).disabled = false; });
+  video.playbackRate = state.speed;
+  renderMediaLists(); renderSegments(); renderSubtitles(); updateSafeZone(state.safeZone); resizePreviewCanvas();
+  video.currentTime = Math.max(0, Math.min(state.segments[0].start + 0.1, state.segments[0].end - 0.01));
+  if (state.loadResolver) { state.loadResolver(true); state.loadResolver = null; }
+});
+
+video.addEventListener("seeked", () => { drawFrame(); drawActiveThumbnail(); updateTimeline(); updateSubtitleActiveStates(); });
+video.addEventListener("timeupdate", () => { updateTimeline(); if (!state.exporting) updateSubtitleActiveStates(); });
+video.addEventListener("play", () => { $("#playBtn").classList.add("playing"); $("#playBtn").setAttribute("aria-label", "暂停"); cancelAnimationFrame(state.animationFrame); paintLoop(); });
+video.addEventListener("pause", () => { $("#playBtn").classList.remove("playing"); $("#playBtn").setAttribute("aria-label", "播放"); drawFrame(); });
+video.addEventListener("ended", () => {
+  if (state.transcribing) stopTranscription("自动听写完成，可以逐条校正字幕。" );
+  if (!state.exporting && state.segments.length) video.currentTime = activeSegments()[0].start;
+});
+video.addEventListener("error", () => showNotice("无法读取这个视频，请尝试 MP4、MOV 或 WebM 文件。", "error"));
+
+$("#fileInput").addEventListener("change", (event) => { addFiles(event.target.files, state.replaceMode); state.replaceMode = false; event.target.value = ""; });
+$("#addMediaBtn").addEventListener("click", () => $("#fileInput").click());
+$("#emptyUploadBtn").addEventListener("click", () => $("#fileInput").click());
+$("#replaceBtn").addEventListener("click", () => { state.replaceMode = true; $("#fileInput").click(); });
+
+const dropZone = $("#dropZone");
+["dragenter", "dragover"].forEach((type) => dropZone.addEventListener(type, (event) => { event.preventDefault(); dropZone.classList.add("dragover"); }));
+["dragleave", "drop"].forEach((type) => dropZone.addEventListener(type, (event) => { event.preventDefault(); dropZone.classList.remove("dragover"); }));
+dropZone.addEventListener("drop", (event) => addFiles(event.dataTransfer.files));
+
+$(".tool-tabs button").forEach((button) => button.addEventListener("click", () => switchTool(button.dataset.panel)));
+$("[data-ratio]").forEach((button) => button.addEventListener("click", () => setRatio(button.dataset.ratio)));
+$("#fitModes button").forEach((button) => button.addEventListener("click", () => setFit(button.dataset.fit)));
+$("#focusX").addEventListener("input", (event) => updateFocus(Number(event.target.value) / 100, state.focusY));
+$("#focusY").addEventListener("input", (event) => updateFocus(state.focusX, Number(event.target.value) / 100));
+$("#centerFocusBtn").addEventListener("click", () => updateFocus(0.5, 0.5));
+$("#blurAmount").addEventListener("input", (event) => { state.blur = Number(event.target.value); $("#blurOut").textContent = state.blur; setRangeFill(event.target); drawFrame(); });
+$("#backgroundColor").addEventListener("input", (event) => { state.background = event.target.value; $("#colorValue").textContent = state.background.toUpperCase(); drawFrame(); });
+
+$("#rotateBtn").addEventListener("click", () => {
+  state.rotation = (state.rotation + 90) % 360;
+  $("#rotateBtn span").textContent = state.rotation ? `旋转 ${state.rotation}°` : "旋转";
+  $("#rotateBtn").classList.toggle("active", state.rotation !== 0); drawFrame(); drawActiveThumbnail();
+});
+$("#flipXBtn").addEventListener("click", () => { state.flipX = !state.flipX; $("#flipXBtn").classList.toggle("active", state.flipX); $("#flipXBtn").setAttribute("aria-pressed", String(state.flipX)); drawFrame(); });
+$("#flipYBtn").addEventListener("click", () => { state.flipY = !state.flipY; $("#flipYBtn").classList.toggle("active", state.flipY); $("#flipYBtn").setAttribute("aria-pressed", String(state.flipY)); drawFrame(); });
+$("#speedSelect").addEventListener("change", (event) => { state.speed = Number(event.target.value); video.playbackRate = state.speed; renderSegments(); });
+
+$("#setInBtn").addEventListener("click", () => {
+  const segment = selectedSegment();
+  if (!segment || video.currentTime >= segment.end - 0.1) return showNotice("入点必须早于片段结束位置。", "error");
+  segment.start = Math.max(0, video.currentTime); updateCurrentItemData(); renderSegments();
+});
+$("#setOutBtn").addEventListener("click", () => {
+  const segment = selectedSegment();
+  if (!segment || video.currentTime <= segment.start + 0.1) return showNotice("出点必须晚于片段开始位置。", "error");
+  segment.end = Math.min(video.duration, video.currentTime); updateCurrentItemData(); renderSegments();
+});
+$("#splitBtn").addEventListener("click", () => {
+  const segment = state.segments.find((clip) => video.currentTime > clip.start + 0.08 && video.currentTime < clip.end - 0.08);
+  if (!segment) return showNotice("请把播放头放在片段内部再分割。", "error");
+  const index = state.segments.indexOf(segment);
+  const left = { id: makeId("clip"), start: segment.start, end: video.currentTime };
+  const right = { id: makeId("clip"), start: video.currentTime, end: segment.end };
+  state.segments.splice(index, 1, left, right); state.selectedSegmentId = right.id; updateCurrentItemData(); renderSegments();
+});
+$("#deleteClipBtn").addEventListener("click", () => {
+  if (state.segments.length <= 1) return showNotice("至少保留一个片段；可通过入点和出点继续裁剪。", "error");
+  const index = state.segments.findIndex((segment) => segment.id === state.selectedSegmentId);
+  if (index < 0) return;
+  state.segments.splice(index, 1); state.selectedSegmentId = state.segments[Math.min(index, state.segments.length - 1)].id;
+  video.currentTime = selectedSegment().start; updateCurrentItemData(); renderSegments();
+});
+
+$("#playBtn").addEventListener("click", async () => {
+  if (!video.paused) { video.pause(); return; }
+  if (!segmentAt(video.currentTime) && state.segments.length) await seekVideo(selectedSegment()?.start || activeSegments()[0].start);
+  video.play();
+});
+$("#timeline").addEventListener("input", (event) => { video.currentTime = Number(event.target.value); updateTimeline(); drawFrame(); });
+$("#volumeBtn").addEventListener("click", () => {
+  video.muted = !video.muted; $("#volumeBtn").classList.toggle("muted-audio", video.muted);
+  $("#volumeBtn").setAttribute("aria-label", video.muted ? "取消静音" : "静音");
+  if (state.monitorGain && !state.exporting) state.monitorGain.gain.value = video.muted ? 0 : 1;
+});
+
+$("#safeZoneSelect").addEventListener("change", (event) => updateSafeZone(event.target.value));
+$("#resolutionSelect").addEventListener("change", () => setRatio(state.ratio));
+$("#addSubtitleBtn").addEventListener("click", () => addSubtitle());
+$("#autoSubtitleBtn").addEventListener("click", toggleAutoTranscription);
+$("#srtInput").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  if (!file || !state.loaded) return;
+  const subtitles = parseSrt(await file.text());
+  if (!subtitles.length) showNotice("没有在文件中找到有效的 SRT 字幕。", "error");
+  else { state.subtitles.splice(0, state.subtitles.length, ...subtitles); updateCurrentItemData(); renderSubtitles(); drawFrame(); showNotice(`已导入 ${subtitles.length} 条字幕。`); }
+  event.target.value = "";
+});
+$("#subtitleSize").addEventListener("input", (event) => { state.subtitleStyle.size = Number(event.target.value); $("#subtitleSizeOut").textContent = event.target.value; setRangeFill(event.target); drawFrame(); });
+$("#subtitlePosition").addEventListener("change", (event) => { state.subtitleStyle.position = event.target.value; drawFrame(); });
+$("#subtitleColor").addEventListener("input", (event) => { state.subtitleStyle.color = event.target.value; drawFrame(); });
+$("#subtitleBg").addEventListener("input", (event) => { state.subtitleStyle.background = event.target.value; drawFrame(); });
+$("#subtitleBackground").addEventListener("change", (event) => { state.subtitleStyle.showBackground = event.target.checked; drawFrame(); });
+
+$("#resetBtn").addEventListener("click", () => {
+  setRatio("9:16"); setFit("cover"); updateFocus(0.5, 0.5);
+  Object.assign(state, { blur: 28, background: "#090b10", rotation: 0, flipX: false, flipY: false, speed: 1 });
+  $("#blurAmount").value = 28; $("#blurOut").textContent = "28"; $("#backgroundColor").value = state.background;
+  $("#colorValue").textContent = state.background.toUpperCase(); $("#resolutionSelect").value = "1080"; $("#fpsSelect").value = "30";
+  $("#speedSelect").value = "1"; $("#includeAudio").checked = true; $("#rotateBtn span").textContent = "旋转";
+  $("#transformControls button").forEach((button) => { button.classList.remove("active"); if (button.hasAttribute("aria-pressed")) button.setAttribute("aria-pressed", "false"); });
+  if (state.loaded) video.playbackRate = 1;
+  setRangeFill($("#blurAmount")); renderSegments(); drawFrame();
+});
+
+let dragging = false;
+function pointerToFocus(event) {
+  const rect = $("#canvasWrap").getBoundingClientRect();
+  updateFocus((event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
+}
+$("#canvasWrap").addEventListener("pointerdown", (event) => {
+  if (state.fit !== "cover" || state.exporting) return;
+  dragging = true; $("#canvasWrap").classList.add("dragging"); $("#canvasWrap").setPointerCapture(event.pointerId); pointerToFocus(event);
+});
+$("#canvasWrap").addEventListener("pointermove", (event) => { if (dragging) pointerToFocus(event); });
+$("#canvasWrap").addEventListener("pointerup", (event) => {
+  dragging = false; $("#canvasWrap").classList.remove("dragging"); $("#canvasWrap").releasePointerCapture(event.pointerId); $("#dragHint").classList.add("fade");
+});
+
+$("#fitPreviewBtn").addEventListener("click", resizePreviewCanvas);
+$("#exportBtn").addEventListener("click", exportVideo);
+$("#batchExportBtn").addEventListener("click", batchExport);
+$("#cancelExportBtn").addEventListener("click", () => {
+  if (!state.exporting) return;
+  state.exportCancelled = true; if (state.batchRunning) state.batchCancelled = true; video.pause();
+  if (state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+});
+
+window.addEventListener("resize", resizePreviewCanvas);
+window.addEventListener("beforeunload", () => { if (state.objectUrl) URL.revokeObjectURL(state.objectUrl); if (state.transcribing) stopTranscription(); });
+
+setupFormatOptions();
+setRatio("9:16");
+setFit("cover");
+renderMediaLists();
+[$("#focusX"), $("#focusY"), $("#blurAmount"), $("#timeline"), $("#subtitleSize")].forEach(setRangeFill);
+
+    </script>
+  </body>
+</html>
